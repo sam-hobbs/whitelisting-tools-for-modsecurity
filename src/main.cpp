@@ -24,7 +24,7 @@
 #include <vector>
 
 // include other bits of this program
-#include "headerlines_vector_pair.h"
+#include "headerlines.h"
 #include "prompt_inputs.h"
 #include "logchop.h"
 
@@ -101,7 +101,7 @@ int main (int argc , char **argv) {
   // =======================================================================================================
   
   // the declaration and definition for headerlines_vector_pair is in headerlines_vector_pair.cpp and headerlines_vector_pair.h
-  vector<pair<int,string>> results = headerlines_vector_pair(logfile, debug);
+  vector<pair<int,string>> results = headerlines(logfile, debug);
 
   
   // =======================================================================================================

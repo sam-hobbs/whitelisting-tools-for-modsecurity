@@ -23,12 +23,12 @@
 #include <vector>
 #include <fstream>
 
-#include "headerlines_vector_pair.h"
+#include "headerlines.h"
 
 using namespace std;
 using std::vector;
 
-vector<pair<int,string>> headerlines_vector_pair(string logfile, bool debug) {
+vector<pair<int,string>> headerlines(string logfile, bool debug) {
   
   // 2D vector to hold results
   vector<pair<int,string>> results;
