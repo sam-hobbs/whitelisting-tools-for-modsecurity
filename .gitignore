@@ -1,30 +1,53 @@
-# Compiled Object files
+## Compiled Object files
 *.slo
 *.lo
 *.o
 *.obj
 
-# Precompiled Headers
+## Precompiled Headers
 *.gch
 *.pch
 
-# Compiled Dynamic libraries
+## Compiled Dynamic libraries
 *.so
 *.dylib
 *.dll
 
-# Fortran module files
+## Fortran module files
 *.mod
 
-# Compiled Static libraries
+## Compiled Static libraries
 *.lai
 *.la
 *.a
 *.lib
 
-# Executables
+## Executables
 *.exe
 *.out
 *.app
 
 auditlog2db
+
+## http://www.gnu.org/software/automake
+Makefile.in
+
+## http://www.gnu.org/software/autoconf
+# ignore everything in the config directory (compile, depcomp, install-sh, missing)
+/config
+
+# and everything in this directory
+/autom4te.cache
+
+# local m4 macro
+/aclocal.m4
+
+# the configure script
+/configure
+
+# config status directory
+config.status
+
+# other configure files
+config.log
+configure.ac.save
