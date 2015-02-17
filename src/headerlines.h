@@ -24,4 +24,4 @@
 using namespace std;
 using std::vector;
 
-vector<pair<int,string>> headerlines(string logfile, bool debug);
+vector<pair<int,string>> headerlines(string logfile, int debug);

@@ -29,7 +29,7 @@
 
 using namespace std;
 
-string setlogfile (bool debug);
-string setdblocation (bool debug);
+string setlogfile (int debug);
+string setdblocation (int debug);
 
 #endif

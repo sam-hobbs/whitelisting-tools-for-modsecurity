@@ -29,7 +29,7 @@ using std::vector;
 
 
 // 1. get size of the vector holding the header strings and line numbers
-// 2. make new tables in DB to hold the logfile after it has been split by headers (is this necessary or will a commit create the table?)
+// 2. make new tables in DB to hold the logfile after it has been split by headers
 // 3. start on vector row 1. determine the header letter type
 // 4. get row line number for current header and row number for next header
 // 5. read file, when the line number is >= the current header number and < the next header number, append the line to the data string
@@ -47,7 +47,7 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName) {
 }
 
 
-int logchop(string database, string logfile, vector<pair<int,string>> results, bool debug, bool force) {
+int logchop(string database, string logfile, vector<pair<int,string>> results, int debug, int force) {
   // set a timer
   std::chrono::time_point<std::chrono::system_clock> start, end;
   start = std::chrono::system_clock::now();
@@ -888,7 +888,8 @@ int logchop(string database, string logfile, vector<pair<int,string>> results, b
   // execute the SQL statements to create all of the tables in the database
   int create_table_errors = 0; // error counter (will be used later) 
   for (const auto &t : create_table_map) {
-    rc = sqlite3_exec(db, t.second, callback, 0, &zErrMsg);
+    //rc = sqlite3_exec(db, t.second, callback, 0, &zErrMsg);
+    rc = sqlite3_exec(db, t.second, 0, 0, &zErrMsg);
     if( rc != SQLITE_OK ){
       cerr << "SQL error executing the " << t.first << " statement. The error was: " << zErrMsg << endl;
       ++create_table_errors;

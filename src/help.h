@@ -16,22 +16,16 @@
 */
 
 // use a guard to avoid multiple definitions
-// if logchop hasn't been defined already
-#ifndef LOGCHOP
-#define LOGCHOP
+// if help hasn't been defined already
 
-// Definition of chop
+#ifndef HELP
+#define HELP
+
+
 #include <iostream>
-#include <string>
-#include <cstring>
-#include <sqlite3.h>
-#include <vector>
-#include <fstream>
-#include <boost/regex.hpp>
 
 using namespace std;
-using std::vector;
 
-int logchop(string database, string logfile, vector<pair<int,string>> results, int debug, int force);
+void help();
 
 #endif

@@ -22,7 +22,7 @@
 
 using namespace std;
 
-string setlogfile (bool debug) {
+string setlogfile (int debug) {
   
   string logfile; // string to store the name of the logfile that will be processed
   cout << "Please type the full path to the logfile you want to process: ";
@@ -46,7 +46,7 @@ string setlogfile (bool debug) {
 
 
 
-string setdblocation (bool debug) {
+string setdblocation (int debug) {
   string database; // string to store location of database
   cout << "Please type the full path to your chosen database location: ";
   getline (cin, database); // store input line as string "db"
