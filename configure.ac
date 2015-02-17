@@ -19,11 +19,16 @@ AC_CHECK_LIB([sqlite3], [sqlite3_exec], [], [
         echo "The sqlite3 library is required for this program"
         exit -1])
 
-dnl Check for boost library
-AC_CHECK_LIB([boost_regex], [main], [], [
-        echo "The boost regex library is required for this program"
-        exit -1])
+dnl Check for boost library using the macros in the m4 directory
+dnl Only tested with boost_regex version 1.55
+AX_BOOST_BASE([1.55], [], [
+	echo "The boost regex library is required for this program"
+	exit -1])
+	
+AX_BOOST_REGEX
 
+        
+        
 AC_LANG_PUSH([C++])
 AC_CHECK_HEADERS([boost/regex.hpp], [],
     [AC_MSG_ERROR(You need the Boost libraries.)])
