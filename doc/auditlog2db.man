@@ -23,7 +23,6 @@
 .\" .sp <n>    insert n+1 empty lines
 .\" for manpage-specific macros, see man(7)
 .\"
-.\" .R indent
 .\" .RS start a nested indentation
 .\" .RE end a nested indentation
 .\"
@@ -45,7 +44,7 @@ auditlog2db \- read a modsecurity auditlog file into a sqlite3 database
 .B auditlog2db
 .RB [\- i " \fIlogfile\fP]"
 .RB [\- o " \fIdatabase\fP]"
-.R [ options ]
+[ \fIoptions\fP ]
 .\"
 .\"
 .SH DESCRIPTION

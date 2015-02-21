@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script
-AC_INIT(ams-whitelisting-tools,0~150218,sam@samhobbs.co.uk)
+AC_INIT([ams-whitelisting-tools],[0~150221],[sam@samhobbs.co.uk])
 
 dnl Require a recent version of autoconf
 AC_PREREQ([2.59])
