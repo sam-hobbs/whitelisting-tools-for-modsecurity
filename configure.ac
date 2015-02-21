@@ -4,18 +4,21 @@ AC_INIT(ams-whitelisting-tools,0~150218,sam@samhobbs.co.uk)
 dnl Require a recent version of autoconf
 AC_PREREQ([2.59])
 
-
 dnl Place to store some helper files, keep the root dir cleaner
 AC_CONFIG_AUX_DIR(config)
 
 AM_INIT_AUTOMAKE
 
-dnl create a config.h file (Automake will add -DHAVE_CONFIG_H)
+dnl specify source directory
 AC_CONFIG_SRCDIR(src/main.cpp)
+
+dnl create a config.h file (Automake will add -DHAVE_CONFIG_H)
 AC_CONFIG_HEADER([config.h])
 
-
 dnl Check for c++ compiler
+AC_LANG(C++)
+
+dnl set c++ compiler
 AC_PROG_CXX
 
 dnl Check for sqlite3 library
@@ -42,4 +45,4 @@ AX_CXX_COMPILE_STDCXX_11
 dnl List makefiles that the configure script should generate on the user's machine
 dnl  for every Makefile.am we create, automake generates Makefile.in
 dnl  The configure script will turn these into Makefiles
-AC_OUTPUT(Makefile src/Makefile)
+AC_OUTPUT(Makefile src/Makefile doc/Makefile)
