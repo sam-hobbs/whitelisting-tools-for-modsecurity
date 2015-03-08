@@ -154,14 +154,15 @@ int logchop(string database, string logfile, vector<pair<int,string>> results, i
 	
   const char *sql_create_H = "CREATE TABLE H(" \
 	"UNIQUE_ID			TEXT	PRIMARY KEY," \
+	"MESSAGES			TEXT	," \
 	"APACHE_HANDLER			TEXT	," \
-	"APACHE_ERROR			TEXT	," \
 	"STOPWATCH			TEXT	," \
 	"STOPWATCH2			TEXT	," \
-	"RESPONSE_BODY_TRANSFORMED	TEXT	," \
 	"PRODUCER			TEXT	," \
 	"SERVER				TEXT	," \
+	"ENGINE_MODE			TEXT	," \
 	"ACTION				TEXT	," \
+	"APACHE_ERROR			TEXT	," \
 	"XML_PARSER_ERROR		TEXT	," \
 	"CRS_SEPARATE_RULES_MATCHED	INTEGER	," \
 	"CRS_PROTOCOL_VIOLATION		INTEGER	," \
@@ -959,13 +960,15 @@ int logchop(string database, string logfile, vector<pair<int,string>> results, i
   // (none)
   
   // matches for section H (audit log trailer)
+  boost::regex H_regex_messages("^Message:(.*?)$"); // WALRUS
   boost::regex H_regex_apache_handler("^Apache-Handler:(.*?)$");
   boost::regex H_regex_apache_error("^Apache-Error:(.*?)$");
   boost::regex H_regex_stopwatch("^Stopwatch:(.*?)$");
   boost::regex H_regex_stopwatch2("^Stopwatch2:(.*?)$");
-  boost::regex H_regex_response_body_transformed("^Apache-Handler:(.*?)$");
+  //boost::regex H_regex_response_body_transformed("^Apache-Handler:(.*?)$");
   boost::regex H_regex_producer("^Producer:(.*?)$");
   boost::regex H_regex_server("^Server:(.*?)$");
+  boost::regex H_regex_engine_mode("^Engine-Mode:\\s\"(.*?)\"$"); // WALRUS
   boost::regex H_regex_action("^Action:(.*?)$");
   boost::regex H_regex_xml_parser_error("^Message: XML parser error:(.*?)$");
   
@@ -1003,7 +1006,8 @@ int logchop(string database, string logfile, vector<pair<int,string>> results, i
   sqlite3_stmt *stmt_insert_F;
   prepared_statements_map.insert({"sql_insert_F",make_tuple(sql_insert_F, &stmt_insert_F)});
   
-  const char *sql_insert_H = "INSERT INTO H (UNIQUE_ID, APACHE_HANDLER, APACHE_ERROR, STOPWATCH, STOPWATCH2, RESPONSE_BODY_TRANSFORMED, PRODUCER, SERVER, ACTION, XML_PARSER_ERROR, CRS_SEPARATE_RULES_MATCHED, CRS_PROTOCOL_VIOLATION, CRS_PROTOCOL_ANOMALY, CRS_REQUEST_LIMIT, CRS_HTTP_POLICY, CRS_BAD_ROBOT, CRS_GENERIC_ATTACK, CRS_SQL_INJECTION, CRS_XSS_ATTACK, CRS_TIGHT_SECURITY, CRS_TROJANS, CRS_COMMON_EXCEPTIONS, CRS_LOCAL_EXCEPTIONS, CRS_INBOUND_BLOCKING, CRS_OUTBOUND, CRS_OUTBOUND_BLOCKING, CRS_CORRELATION, CRS_BRUTE_FORCE, CRS_DOS, CRS_PROXY_ABUSE, CRS_SLOW_DOS, CRS_CC_TRACK_PAN, CRS_APPSENSOR, CRS_HTTP_PARAMETER_POLLUTION, CRS_CSP_ENFORCEMENT, CRS_SCANNER_INTEGRATION, CRS_BAYES_ANALYSIS, CRS_RESPONSE_PROFILING, CRS_PVI_CHECKS, CRS_IP_FORENSICS, CRS_IGNORE_STATIC, CRS_AVS_TRAFFIC, CRS_XML_ENABLER, CRS_AUTHENTICATION_TRACKING, CRS_SESSION_HIJACKING, CRS_USERNAME_TRACKING, CRS_CC_KNOWN, CRS_COMMENT_SPAM, CRS_CSRF_PROTECTION, CRS_AV_SCANNING, CRS_SKIP_OUTBOUND_CHECKS, CRS_HEADER_TAGGING, CRS_APPLICATION_DEFECTS, CRS_MARKETING) VALUES (:UNIQUE_ID, :TRAILER_APACHE_HANDLER, :TRAILER_APACHE_ERROR, :TRAILER_STOPWATCH, :TRAILER_STOPWATCH2, :TRAILER_RESPONSE_BODY_TRANSFORMED, :TRAILER_PRODUCER, :TRAILER_SERVER, :TRAILER_ACTION, :TRAILER_XML_PARSER_ERROR, :CRS_SEPARATE_RULES_MATCHED, :CRS_PROTOCOL_VIOLATION, :CRS_PROTOCOL_ANOMALY, :CRS_REQUEST_LIMIT, :CRS_HTTP_POLICY, :CRS_BAD_ROBOT, :CRS_GENERIC_ATTACK, :CRS_SQL_INJECTION, :CRS_XSS_ATTACK, :CRS_TIGHT_SECURITY, :CRS_TROJANS, :CRS_COMMON_EXCEPTIONS, :CRS_LOCAL_EXCEPTIONS, :CRS_INBOUND_BLOCKING, :CRS_OUTBOUND, :CRS_OUTBOUND_BLOCKING, :CRS_CORRELATION, :CRS_BRUTE_FORCE, :CRS_DOS, :CRS_PROXY_ABUSE, :CRS_SLOW_DOS, :CRS_CC_TRACK_PAN, :CRS_APPSENSOR, :CRS_HTTP_PARAMETER_POLLUTION, :CRS_CSP_ENFORCEMENT, :CRS_SCANNER_INTEGRATION, :CRS_BAYES_ANALYSIS, :CRS_RESPONSE_PROFILING, :CRS_PVI_CHECKS, :CRS_IP_FORENSICS, :CRS_IGNORE_STATIC, :CRS_AVS_TRAFFIC, :CRS_XML_ENABLER, :CRS_AUTHENTICATION_TRACKING, :CRS_SESSION_HIJACKING, :CRS_USERNAME_TRACKING, :CRS_CC_KNOWN, :CRS_COMMENT_SPAM, :CRS_CSRF_PROTECTION, :CRS_AV_SCANNING, :CRS_SKIP_OUTBOUND_CHECKS, :CRS_HEADER_TAGGING, :CRS_APPLICATION_DEFECTS, :CRS_MARKETING);";
+  // messages, engine mode
+  const char *sql_insert_H = "INSERT INTO H (UNIQUE_ID, MESSAGES, APACHE_HANDLER, APACHE_ERROR, STOPWATCH, STOPWATCH2, PRODUCER, SERVER, ENGINE_MODE, ACTION, XML_PARSER_ERROR, CRS_SEPARATE_RULES_MATCHED, CRS_PROTOCOL_VIOLATION, CRS_PROTOCOL_ANOMALY, CRS_REQUEST_LIMIT, CRS_HTTP_POLICY, CRS_BAD_ROBOT, CRS_GENERIC_ATTACK, CRS_SQL_INJECTION, CRS_XSS_ATTACK, CRS_TIGHT_SECURITY, CRS_TROJANS, CRS_COMMON_EXCEPTIONS, CRS_LOCAL_EXCEPTIONS, CRS_INBOUND_BLOCKING, CRS_OUTBOUND, CRS_OUTBOUND_BLOCKING, CRS_CORRELATION, CRS_BRUTE_FORCE, CRS_DOS, CRS_PROXY_ABUSE, CRS_SLOW_DOS, CRS_CC_TRACK_PAN, CRS_APPSENSOR, CRS_HTTP_PARAMETER_POLLUTION, CRS_CSP_ENFORCEMENT, CRS_SCANNER_INTEGRATION, CRS_BAYES_ANALYSIS, CRS_RESPONSE_PROFILING, CRS_PVI_CHECKS, CRS_IP_FORENSICS, CRS_IGNORE_STATIC, CRS_AVS_TRAFFIC, CRS_XML_ENABLER, CRS_AUTHENTICATION_TRACKING, CRS_SESSION_HIJACKING, CRS_USERNAME_TRACKING, CRS_CC_KNOWN, CRS_COMMENT_SPAM, CRS_CSRF_PROTECTION, CRS_AV_SCANNING, CRS_SKIP_OUTBOUND_CHECKS, CRS_HEADER_TAGGING, CRS_APPLICATION_DEFECTS, CRS_MARKETING) VALUES (:UNIQUE_ID, :TRAILER_MESSAGES, :TRAILER_APACHE_HANDLER, :TRAILER_APACHE_ERROR, :TRAILER_STOPWATCH, :TRAILER_STOPWATCH2, :TRAILER_PRODUCER, :TRAILER_SERVER, :TRAILER_ENGINE_MODE, :TRAILER_ACTION, :TRAILER_XML_PARSER_ERROR, :CRS_SEPARATE_RULES_MATCHED, :CRS_PROTOCOL_VIOLATION, :CRS_PROTOCOL_ANOMALY, :CRS_REQUEST_LIMIT, :CRS_HTTP_POLICY, :CRS_BAD_ROBOT, :CRS_GENERIC_ATTACK, :CRS_SQL_INJECTION, :CRS_XSS_ATTACK, :CRS_TIGHT_SECURITY, :CRS_TROJANS, :CRS_COMMON_EXCEPTIONS, :CRS_LOCAL_EXCEPTIONS, :CRS_INBOUND_BLOCKING, :CRS_OUTBOUND, :CRS_OUTBOUND_BLOCKING, :CRS_CORRELATION, :CRS_BRUTE_FORCE, :CRS_DOS, :CRS_PROXY_ABUSE, :CRS_SLOW_DOS, :CRS_CC_TRACK_PAN, :CRS_APPSENSOR, :CRS_HTTP_PARAMETER_POLLUTION, :CRS_CSP_ENFORCEMENT, :CRS_SCANNER_INTEGRATION, :CRS_BAYES_ANALYSIS, :CRS_RESPONSE_PROFILING, :CRS_PVI_CHECKS, :CRS_IP_FORENSICS, :CRS_IGNORE_STATIC, :CRS_AVS_TRAFFIC, :CRS_XML_ENABLER, :CRS_AUTHENTICATION_TRACKING, :CRS_SESSION_HIJACKING, :CRS_USERNAME_TRACKING, :CRS_CC_KNOWN, :CRS_COMMENT_SPAM, :CRS_CSRF_PROTECTION, :CRS_AV_SCANNING, :CRS_SKIP_OUTBOUND_CHECKS, :CRS_HEADER_TAGGING, :CRS_APPLICATION_DEFECTS, :CRS_MARKETING);";
   sqlite3_stmt *stmt_insert_H;
   prepared_statements_map.insert({"sql_insert_H",make_tuple(sql_insert_H, &stmt_insert_H)});
 
@@ -1804,7 +1808,7 @@ int logchop(string database, string logfile, vector<pair<int,string>> results, i
     // strings for matches in F
     string RESPONSE_HTTP_VERSION, RESPONSE_HTTP_STATUS_CODE, RESPONSE_HTTP_STATUS_TEXT, RESPONSE_X_POWERED_BY, RESPONSE_EXPIRES, RESPONSE_CACHE_CONTROL, RESPONSE_PRAGMA, RESPONSE_VARY, RESPONSE_CONTENT_ENCODING, RESPONSE_CONTENT_LENGTH, RESPONSE_CONNECTION, RESPONSE_CONTENT_TYPE, RESPONSE_STATUS, RESPONSE_KEEP_ALIVE;
     // strings for matches in H
-    string TRAILER_APACHE_HANDLER, TRAILER_APACHE_ERROR, TRAILER_STOPWATCH, TRAILER_STOPWATCH2, TRAILER_RESPONSE_BODY_TRANSFORMED, TRAILER_PRODUCER, TRAILER_SERVER, TRAILER_ACTION, TRAILER_XML_PARSER_ERROR;
+    string TRAILER_MESSAGES, TRAILER_APACHE_HANDLER, TRAILER_APACHE_ERROR, TRAILER_STOPWATCH, TRAILER_STOPWATCH2, TRAILER_PRODUCER, TRAILER_SERVER, TRAILER_ENGINE_MODE, TRAILER_ACTION, TRAILER_XML_PARSER_ERROR;
     
     
     // 3. start on vector row 1. determine the header letter type
@@ -2112,7 +2116,17 @@ int logchop(string database, string logfile, vector<pair<int,string>> results, i
 	    if (debug) {cout << "Letter is H" << endl;}
 	    H = headerdata;
 	    sqlite3_bind_text(stmt_insert_main, sqlite3_bind_parameter_index(stmt_insert_main, ":H"), H.c_str(), H.length(), 0);	
-
+	    
+	    // make a stream object from the H string so that it can be processed line by line
+	    std::istringstream streamH(H);
+	    string Hline;
+	    while (getline(streamH, Hline)) {
+	      if (boost::regex_search(Hline.c_str(), match, H_regex_messages)) {
+		TRAILER_MESSAGES.append(match[1]); // WALRUS
+		TRAILER_MESSAGES.append(string("\n"));
+	      }
+	    }
+	    
 	    if (boost::regex_search(H.c_str(), match, H_regex_apache_handler)) {
 	      TRAILER_APACHE_HANDLER = match[1];
 	    }
@@ -2125,14 +2139,17 @@ int logchop(string database, string logfile, vector<pair<int,string>> results, i
 	    if (boost::regex_search(H.c_str(), match, H_regex_stopwatch2)) {
 	      TRAILER_STOPWATCH2 = match[1];
 	    }
-	    if (boost::regex_search(H.c_str(), match, H_regex_response_body_transformed)) {
-	      TRAILER_RESPONSE_BODY_TRANSFORMED = match[1];
-	    }
+	    //if (boost::regex_search(H.c_str(), match, H_regex_response_body_transformed)) {
+	    //  TRAILER_RESPONSE_BODY_TRANSFORMED = match[1];
+	    //}
 	    if (boost::regex_search(H.c_str(), match, H_regex_producer)) {
 	      TRAILER_PRODUCER = match[1];
 	    }
 	    if (boost::regex_search(H.c_str(), match, H_regex_server)) {
 	      TRAILER_SERVER = match[1];
+	    }
+	    if (boost::regex_search(H.c_str(), match, H_regex_engine_mode)) {
+	      TRAILER_ENGINE_MODE = match[1]; // WALRUS
 	    }
 	    if (boost::regex_search(H.c_str(), match, H_regex_action)) {
 	      TRAILER_ACTION = match[1];
@@ -2142,13 +2159,15 @@ int logchop(string database, string logfile, vector<pair<int,string>> results, i
 	    }
 	    
 	    // bind values for table H
+	    sqlite3_bind_text(stmt_insert_H, sqlite3_bind_parameter_index(stmt_insert_H, ":TRAILER_MESSAGES"), TRAILER_MESSAGES.c_str(), TRAILER_MESSAGES.length(), 0); // WALRUS
 	    sqlite3_bind_text(stmt_insert_H, sqlite3_bind_parameter_index(stmt_insert_H, ":TRAILER_APACHE_HANDLER"), TRAILER_APACHE_HANDLER.c_str(), TRAILER_APACHE_HANDLER.length(), 0);
 	    sqlite3_bind_text(stmt_insert_H, sqlite3_bind_parameter_index(stmt_insert_H, ":TRAILER_APACHE_ERROR"), TRAILER_APACHE_ERROR.c_str(), TRAILER_APACHE_ERROR.length(), 0);
 	    sqlite3_bind_text(stmt_insert_H, sqlite3_bind_parameter_index(stmt_insert_H, ":TRAILER_STOPWATCH"), TRAILER_STOPWATCH.c_str(), TRAILER_STOPWATCH.length(), 0);
 	    sqlite3_bind_text(stmt_insert_H, sqlite3_bind_parameter_index(stmt_insert_H, ":TRAILER_STOPWATCH2"), TRAILER_STOPWATCH2.c_str(), TRAILER_STOPWATCH2.length(), 0);
-	    sqlite3_bind_text(stmt_insert_H, sqlite3_bind_parameter_index(stmt_insert_H, ":TRAILER_RESPONSE_BODY_TRANSFORMED"), TRAILER_RESPONSE_BODY_TRANSFORMED.c_str(), TRAILER_RESPONSE_BODY_TRANSFORMED.length(), 0);
+	    //sqlite3_bind_text(stmt_insert_H, sqlite3_bind_parameter_index(stmt_insert_H, ":TRAILER_RESPONSE_BODY_TRANSFORMED"), TRAILER_RESPONSE_BODY_TRANSFORMED.c_str(), TRAILER_RESPONSE_BODY_TRANSFORMED.length(), 0);
 	    sqlite3_bind_text(stmt_insert_H, sqlite3_bind_parameter_index(stmt_insert_H, ":TRAILER_PRODUCER"), TRAILER_PRODUCER.c_str(), TRAILER_PRODUCER.length(), 0);
 	    sqlite3_bind_text(stmt_insert_H, sqlite3_bind_parameter_index(stmt_insert_H, ":TRAILER_SERVER"), TRAILER_SERVER.c_str(), TRAILER_SERVER.length(), 0);
+	    sqlite3_bind_text(stmt_insert_H, sqlite3_bind_parameter_index(stmt_insert_H, ":TRAILER_ENGINE_MODE"), TRAILER_ENGINE_MODE.c_str(), TRAILER_ENGINE_MODE.length(), 0); // WALRUS
 	    sqlite3_bind_text(stmt_insert_H, sqlite3_bind_parameter_index(stmt_insert_H, ":TRAILER_ACTION"), TRAILER_ACTION.c_str(), TRAILER_ACTION.length(), 0);
 	    sqlite3_bind_text(stmt_insert_H, sqlite3_bind_parameter_index(stmt_insert_H, ":TRAILER_XML_PARSER_ERROR"), TRAILER_XML_PARSER_ERROR.c_str(), TRAILER_XML_PARSER_ERROR.length(), 0);
 
@@ -2237,7 +2256,7 @@ int logchop(string database, string logfile, vector<pair<int,string>> results, i
 		if(debug) {cout << UNIQUE_ID << ": " << id << " was found in the ID counter" << endl;}
 		
 		// bind the counter for the relevant rule ID to the correct statement
-		int rc_bind = sqlite3_bind_int(statement, sqlite3_bind_parameter_index(statement, colonnumber.c_str()), pos2->second); // WALRUS - working! Just tidy up
+		int rc_bind = sqlite3_bind_int(statement, sqlite3_bind_parameter_index(statement, colonnumber.c_str()), pos2->second);
 		
 		if (rc_bind != SQLITE_OK) {
 		  cerr << UNIQUE_ID << ": error binding values for " << id << " . Code " << rc_bind << " description: " << sqlite3_errmsg(db) << endl;
@@ -2359,7 +2378,7 @@ int logchop(string database, string logfile, vector<pair<int,string>> results, i
 	    RESPONSE_HTTP_VERSION=RESPONSE_HTTP_STATUS_CODE=RESPONSE_HTTP_STATUS_TEXT=RESPONSE_X_POWERED_BY=RESPONSE_EXPIRES=RESPONSE_CACHE_CONTROL=RESPONSE_PRAGMA=RESPONSE_VARY=RESPONSE_CONTENT_ENCODING=RESPONSE_CONTENT_LENGTH=RESPONSE_CONNECTION= RESPONSE_CONTENT_TYPE=RESPONSE_STATUS=RESPONSE_KEEP_ALIVE="";
 	    
 	    // clear H strings
-	    TRAILER_APACHE_HANDLER=TRAILER_APACHE_ERROR=TRAILER_STOPWATCH=TRAILER_STOPWATCH2=TRAILER_RESPONSE_BODY_TRANSFORMED=TRAILER_PRODUCER=TRAILER_SERVER=TRAILER_ACTION=TRAILER_XML_PARSER_ERROR="";
+	    TRAILER_MESSAGES=TRAILER_APACHE_HANDLER=TRAILER_APACHE_ERROR=TRAILER_STOPWATCH=TRAILER_STOPWATCH2=TRAILER_PRODUCER=TRAILER_SERVER=TRAILER_ENGINE_MODE=TRAILER_ACTION=TRAILER_XML_PARSER_ERROR="";
 	    
 	    // reset counters for matches in H to 0    
 	    if(debug) {cout << "Resetting counters to 0" << endl;}
