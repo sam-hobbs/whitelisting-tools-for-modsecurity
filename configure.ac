@@ -32,8 +32,12 @@ AX_BOOST_BASE([1.55], [], [
 	echo "The boost regex library is required for this program"
 	exit -1])
 	
-AX_BOOST_REGEX
 
+dnl BOOST_FILESYSTEM requires AX_BOOST_SYSTEM
+dnl These macros create flags for the linker, the src/Makefile.am must use them, e.g. "auditlog2db_LDADD = $(BOOST_REGEX_LIB) $(BOOST_FILESYSTEM_LIB) $(BOOST_SYSTEM_LIB)"
+AX_BOOST_REGEX
+AX_BOOST_FILESYSTEM
+AX_BOOST_SYSTEM
 
 dnl For boost m4 macro examples see:
 dnl http://www.randspringer.de/boost/examples.html

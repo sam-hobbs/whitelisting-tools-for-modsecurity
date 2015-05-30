@@ -23,6 +23,7 @@
 #include <fstream>
 #include <vector>
 #include <getopt.h> // option parsing
+#include <boost/filesystem.hpp>
 
 // include other bits of this program
 #include "headerlines.h"
@@ -39,15 +40,14 @@ using std::vector;
 
 
 
-
-
 //===========================================================================
 // 1. Parse commandline arguments
 // 2. Check if database name and logfile name were specified with command
 //	line option, if not prompt user
-// 3. Run headerlines function to get a list of header locations within the
+// 3. If the specified database does not exist, create it from a template.
+// 4. Run headerlines function to get a list of header locations within the
 //	log file
-// 4. Run logchop function to read log file and split at header locations,
+// 5. Run logchop function to read log file and split at header locations,
 //	insert into database
 //===========================================================================
 
@@ -68,6 +68,7 @@ int main (int argc , char **argv) {
   string progname = argv[0]; // program name is always argv[0]
   string database;
   string logfile;
+  string templatefile = "/etc/auditlog2db/template.sql";
 
   
   // use getopt long to parse the commandline arguments
@@ -90,6 +91,7 @@ int main (int argc , char **argv) {
 	{"help", no_argument, 0, 'h'},
 	{"input", required_argument, 0, 'i'},
 	{"output", required_argument, 0, 'o'},
+        {"template", required_argument, 0, 't'},
 	{"version", no_argument, 0, 'v'},
 	// array must be terminated with an element containing all zeros
 	{0,0,0,0}
@@ -107,7 +109,7 @@ int main (int argc , char **argv) {
      *   letter then two colons means optional argument
      *   still need to provide cases for the short options that set flags above
     */
-    c = getopt_long (argc, argv, "dfqhi:o:v", long_options, &option_index);
+    c = getopt_long (argc, argv, "dfqhi:o:t:v", long_options, &option_index);
     
     // if getopt_long returned -1, there are no more options, end the loop
     if (c == -1) { 
@@ -154,6 +156,10 @@ int main (int argc , char **argv) {
       case 'q':
 	quiet = 1;
 	break;
+      case 't':
+        cout << "option -t with value " << optarg << endl;
+        templatefile = optarg;
+        break;
       case 'v':
 	// print version and exit. PACKAGE_VERSION is set by configure.ac
 	cout << PACKAGE_VERSION << endl;
@@ -197,11 +203,40 @@ int main (int argc , char **argv) {
     cout << "Logfile location has not been specified" << endl;
     logfile = setlogfile(debug);
   }
+
+  
+  // ========================================================================
+  // 3. If the specified database does not exist, create it from a template
+  // ========================================================================
+  if (boost::filesystem::exists(database)) {
+      cout << "Database file exists" << endl;
+  } else {
+      cout << "Database file does not exist, one will be created by importing a template SQL file" << endl;
+
+      // check if SQL template file exists before trying to import it
+      if (!boost::filesystem::exists(templatefile)) {
+        cerr << "No template file exists for importing data. To use a custom file use the -t option" << endl;
+        return 1;
+      }
+      
+      // create a string containing the import command to be run with sqlite3
+      string importcommand = string("sqlite3 -init ") + templatefile + " " + database + " .exit";
+      if (debug) {cout << "importcommand string is: " << importcommand << endl;}
+
+      // create the database file using sqlite3's import function
+      if(system(importcommand.c_str())) {
+        cerr << "Something went wrong during database initialisation" << endl;
+        return 1;
+      } else {
+        cout << "New database created successfully" << endl;
+      }
+  }
+  
   
   
   
   // ========================================================================
-  // 3. Run headerlines function to get a list of header locations within the
+  // 4. Run headerlines function to get a list of header locations within the
   //	log file
   // ========================================================================
   
@@ -211,7 +246,7 @@ int main (int argc , char **argv) {
 
   
   // ========================================================================
-  // 4. Run logchop function to read log file and split at header locations,
+  // 5. Run logchop function to read log file and split at header locations,
   //	insert into database
   // ========================================================================
   

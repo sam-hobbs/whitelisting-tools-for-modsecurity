@@ -81,6 +81,9 @@ Output: a sqlite database. If the database does not currently exist it will be c
 .B \-q, \-\-quiet
 Quiet mode; eliminate informational messages.
 .TP
+.B \-t, \-\-template
+Specify a SQL template file for creation of new sqlite databases.
+.TP
 .B \-v, \-\-version
 Show version of program.
 .\"

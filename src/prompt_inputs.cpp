@@ -28,7 +28,8 @@ string setlogfile (int debug) {
   cout << "Please type the full path to the logfile you want to process: ";
   getline (cin, logfile); // store the line that was typed as the string "logfile" 
   
-  boost::regex logregex("[\\w\\/]+\\.log");
+  //boost::regex logregex("[\\w\\/]+\\.log");
+  boost::regex logregex("[\\w\\/\\.\\-]+\\.log");
   
   while (! boost::regex_match(logfile, logregex)) {
     cout << "Not a valid log file, expected something like /path/to/logfile.log" << endl;
@@ -50,7 +51,10 @@ string setdblocation (int debug) {
   string database; // string to store location of database
   cout << "Please type the full path to your chosen database location: ";
   getline (cin, database); // store input line as string "db"
-  boost::regex dbregex("[a-z|\\/]+\\.db");
+  
+  //boost::regex dbregex("[a-z|\\/]+\\.db");
+  boost::regex dbregex("[a-z|\\/\\.\\-]+\\.db");
+  
   while (! boost::regex_match(database, dbregex)) {
     cout << "Not a valid database file, expected something like /path/to/database.db" << endl;
     cout << "Try again: ";

@@ -42,6 +42,9 @@ void help() {
   cout << "\t -q, --quiet" << endl;
   cout << "\t\t Quiet mode; eliminate informational messages." << endl;
   cout << endl;
+  cout << "\t -t, --template" << endl;
+  cout << "\t\t Specify a SQL template file for creation of new sqlite databases" << endl;
+  cout << endl;
   cout << "\t -v, --version" << endl;
   cout << "\t\t Show version of program." << endl;
   cout << endl;
