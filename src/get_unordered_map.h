@@ -15,38 +15,25 @@
     along with auditlog2db.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// use a guard to avoid multiple definitions
-// if logchop hasn't been defined already
-#ifndef LOGCHOP
-#define LOGCHOP
 
-// Definition of chop
+#ifndef GET_UNORDERED_MAP
+#define GET_UNORDERED_MAP
+
+
 #include <iostream>
 #include <string>
-#include <cstring>
+#include <cstring> // need this for strlen, which is used in rc = on line ~42
 #include <sqlite3.h>
-#include <vector>
-#include <fstream>
-#include <boost/regex.hpp>
-#include <chrono>
-
-
-// standard library header for ordered map
+//#include <vector>
 #include <unordered_map>
-#include <get_unordered_map.h> // part of this program
 
-
+#include "get_unordered_map.h"
 
 using namespace std;
-using std::vector;
 using std::unordered_map;
 
-int ID_from_map(string key, unordered_map<string,int>& mymap, int debug);
+// this function takes the database name and sql statement to be executed and returns an unordered map of the results
+unordered_map<string,int> get_unordered_map(string database, const char* sql, bool debug);
 
-void commit_maps(sqlite3 *db, const char *sql, unordered_map<string, int>& mymap, int debug);
-
-void bind_ID (sqlite3_stmt *stmt, const char * colonidstring, int ID, int debug);
-
-int logchop(string database, string logfile, vector<pair<int,string>> results, int debug, int force);
 
 #endif
