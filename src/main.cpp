@@ -68,7 +68,9 @@ int main (int argc , char **argv) {
   string progname = argv[0]; // program name is always argv[0]
   string database;
   string logfile;
-  string templatefile = "/etc/auditlog2db/template.sql";
+  string templatefile;
+  string rulesdatafile;
+  string configdir = "/etc/auditlog2db/";
 
   
   // use getopt long to parse the commandline arguments
@@ -88,9 +90,11 @@ int main (int argc , char **argv) {
 	{"force", no_argument, &force, 1},
 	{"quiet", no_argument, &quiet, 1},
 	// these options don't set a flag, instead they set a case for switch
+        {"configdir", required_argument, 0, 'c'},
 	{"help", no_argument, 0, 'h'},
 	{"input", required_argument, 0, 'i'},
 	{"output", required_argument, 0, 'o'},
+        {"rulesdata", required_argument, 0, 'r'},
         {"template", required_argument, 0, 't'},
 	{"version", no_argument, 0, 'v'},
 	// array must be terminated with an element containing all zeros
@@ -109,7 +113,7 @@ int main (int argc , char **argv) {
      *   letter then two colons means optional argument
      *   still need to provide cases for the short options that set flags above
     */
-    c = getopt_long (argc, argv, "dfqhi:o:t:v", long_options, &option_index);
+    c = getopt_long (argc, argv, "dfqc:hi:o:r:t:v", long_options, &option_index);
     
     // if getopt_long returned -1, there are no more options, end the loop
     if (c == -1) { 
@@ -130,6 +134,11 @@ int main (int argc , char **argv) {
 	if (optarg) { cout << "with arg " << optarg; }
 	cout << endl;
 	break;
+      case 'c':
+        // set configdir and break
+        cout << "option -c with value " << optarg << endl;
+        configdir = optarg;
+        break;
       case 'd':
 	// set debugging to true and break
 	debug = 1;
@@ -156,6 +165,10 @@ int main (int argc , char **argv) {
       case 'q':
 	quiet = 1;
 	break;
+      case 'r':
+        cout << "option -r with value " << optarg << endl;
+        rulesdatafile = optarg;
+        break;
       case 't':
         cout << "option -t with value " << optarg << endl;
         templatefile = optarg;
@@ -184,6 +197,22 @@ int main (int argc , char **argv) {
       while (optind < argc) { cerr << argv[optind++] << ", ";}
       cerr << endl;
   }
+  
+  
+  
+  // if no template file was specified, use the configdir to specify one
+  if ( templatefile == "" ) {
+      templatefile = configdir + "template.sql";
+  }
+  cout << "Template file is " << templatefile << endl;
+  
+  // if no rulesdata file was specified, use the configdir to specify one
+  if ( rulesdatafile == "" ) {
+      rulesdatafile = configdir + "rulesdata.conf";
+  }
+  cout << "Rulesdata file is " << rulesdatafile << endl;
+  
+  
   
   
   
@@ -251,7 +280,7 @@ int main (int argc , char **argv) {
   // ========================================================================
   
   
-  int logchop_status = logchop(database, logfile, results, debug, force);
+  int logchop_status = logchop(database, logfile, rulesdatafile, results, debug, force);
   
   
   

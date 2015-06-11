@@ -22,8 +22,14 @@ using namespace std;
 void help() {
   cout << "This program follows the usual GNU command line syntax, with long options starting" << endl;
   cout << "with two dashes (`-'). A summary of options is included below." << endl;
+
+  cout << "\t -c, --configdir" << endl;
+  cout << "\t\t Use configuration files from a specified directory. Searches for" << endl;
+  cout << "\t\t files named `template.sql' and `rulesdata.conf'. Overridden by" << endl;
+  cout << "\t\t the use of `--template' and `--rulesdata'." << endl;
+  cout << endl;
   cout << "\t -d, --debug" << endl;
-  cout << "\t \t Turn on debugging." << endl;
+  cout << "\t\t Turn on debugging." << endl;
   cout << endl;
   cout << "\t -f, --force" << endl;
   cout << "\t\t Skips through inteactive questions/warnings/prompts (use this if" << endl;
@@ -42,8 +48,12 @@ void help() {
   cout << "\t -q, --quiet" << endl;
   cout << "\t\t Quiet mode; eliminate informational messages." << endl;
   cout << endl;
+  cout << "\t -r, --rulesdata" << endl;
+  cout << "\t\t Specify a rulesdata file to use (overrides `--configdir')." << endl;
+  cout << endl;
   cout << "\t -t, --template" << endl;
   cout << "\t\t Specify a SQL template file for creation of new sqlite databases" << endl;
+  cout << "\t\t (overrides `--configdir')" << endl;
   cout << endl;
   cout << "\t -v, --version" << endl;
   cout << "\t\t Show version of program." << endl;

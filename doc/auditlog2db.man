@@ -8,7 +8,7 @@
 .\" <http://www.gnu.org/licenses/>.
 .\" =========================================================================
 .\" 
-.TH AUDITLOG2DB 1 "February  15, 2015"
+.TH AUDITLOG2DB 1 "June  11, 2015"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" http://babbage.cs.qc.edu/courses/cs701/Handouts/man_pages.html
@@ -62,6 +62,10 @@ This program follows the usual GNU command line syntax, with long
 options starting with two dashes (`-').
 A summary of options is included below.
 .TP
+.B \-c, \-\-configdir
+Use configuration files from a specified directory. Searches for files named
+`template.sql' and `rulesdata.conf'. Overridden by the --template and --rulesdata.
+.TP
 .B \-d, \-\-debug
 Turn on debugging.
 .TP
@@ -81,8 +85,11 @@ Output: a sqlite database. If the database does not currently exist it will be c
 .B \-q, \-\-quiet
 Quiet mode; eliminate informational messages.
 .TP
+.B \-r, \-\-rulesdata
+Specify a rulesdata file to use (overrides `--configdir').
+.TP
 .B \-t, \-\-template
-Specify a SQL template file for creation of new sqlite databases.
+Specify a SQL template file for creation of new sqlite databases (overrides `--configdir').
 .TP
 .B \-v, \-\-version
 Show version of program.

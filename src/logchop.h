@@ -47,6 +47,6 @@ void commit_maps(sqlite3 *db, const char *sql, unordered_map<string, int>& mymap
 
 void bind_ID (sqlite3_stmt *stmt, const char * colonidstring, int ID, int debug);
 
-int logchop(string database, string logfile, vector<pair<int,string>> results, int debug, int force);
+int logchop(string database, string logfile, string rulesdatafile, vector<pair<int,string>> results, int debug, int force);
 
 #endif
