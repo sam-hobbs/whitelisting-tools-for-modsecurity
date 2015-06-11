@@ -1,4 +1,4 @@
-ams-whitelisting-tools
+Whitelisting Tools for ModSecurity
 ======================
 
 Tools to simplify the creation of a whitelist for Apache's ModSecurity when used in with the Open Web Application Security Project's Core Rule Set (OWASP CRS).
