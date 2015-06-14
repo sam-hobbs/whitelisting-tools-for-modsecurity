@@ -1899,62 +1899,62 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
     
     // create sql statements for committing to database
     // A
-    const char * sql_source_ip_ID = "INSERT INTO source_ip (source_ip_id, source_ip) VALUES (:id, :value);";
-    const char * sql_source_port_ID = "INSERT INTO source_port (source_port_id, source_port) VALUES (:id, :value);";
-    const char * sql_destination_ip_ID = "INSERT INTO destination_ip (destination_ip_id, destination_ip) VALUES (:id, :value);";
-    const char * sql_destination_port_ID = "INSERT INTO destination_port (destination_port_id, destination_port) VALUES (:id, :value);";
+    const char * sql_source_ip_ID = "INSERT OR IGNORE INTO source_ip (source_ip_id, source_ip) VALUES (:id, :value);";
+    const char * sql_source_port_ID = "INSERT OR IGNORE INTO source_port (source_port_id, source_port) VALUES (:id, :value);";
+    const char * sql_destination_ip_ID = "INSERT OR IGNORE INTO destination_ip (destination_ip_id, destination_ip) VALUES (:id, :value);";
+    const char * sql_destination_port_ID = "INSERT OR IGNORE INTO destination_port (destination_port_id, destination_port) VALUES (:id, :value);";
 
     // B
-    const char * sql_request_method_ID = "INSERT INTO request_method (request_method_id, request_method) VALUES (:id, :value);";
-    const char * sql_uri_ID = "INSERT INTO uri (uri_id, uri) VALUES (:id, :value);";
-    const char * sql_http_version_b_ID = "INSERT INTO http_version_b (http_version_b_id, http_version_b) VALUES (:id, :value);";
-    const char * sql_hosts_ID = "INSERT INTO hosts (host_id, host) VALUES (:id, :value);";
-    const char * sql_connection_b_ID = "INSERT INTO connection_b (connection_b_id, connection_b) VALUES (:id, :value);";
-    const char * sql_accept_ID = "INSERT INTO accept (accept_id, accept) VALUES (:id, :value);";
-    const char * sql_user_agent_ID = "INSERT INTO user_agent (user_agent_id, user_agent) VALUES (:id, :value);";
-    const char * sql_dnt_ID = "INSERT INTO dnt (dnt_id, dnt) VALUES (:id, :value);";
-    const char * sql_referrer_ID = "INSERT INTO referrer (referrer_id, referrer) VALUES (:id, :value);";
-    const char * sql_accept_encoding_ID = "INSERT INTO accept_encoding (accept_encoding_id, accept_encoding) VALUES (:id, :value);";
-    const char * sql_accept_language_ID = "INSERT INTO accept_language (accept_language_id, accept_language) VALUES (:id, :value);";
-    const char * sql_cookie_ID = "INSERT INTO cookie (cookie_id, cookie) VALUES (:id, :value);";
-    const char * sql_x_requested_with_ID = "INSERT INTO x_requested_with (x_requested_with_id, x_requested_with) VALUES (:id, :value);";
-    const char * sql_content_type_b_ID = "INSERT INTO content_type_b (content_type_b_id, content_type_b) VALUES (:id, :value);";
-    const char * sql_content_length_b_ID = "INSERT INTO content_length_b (content_length_b_id, content_length_b) VALUES (:id, :value);";
-    const char * sql_proxy_connection_ID = "INSERT INTO proxy_connection (proxy_connection_id, proxy_connection) VALUES (:id, :value);";
-    const char * sql_accept_charset_ID = "INSERT INTO accept_charset (accept_charset_id, accept_charset) VALUES (:id, :value);";
-    const char * sql_ua_cpu_ID = "INSERT INTO ua_cpu (ua_cpu_id, ua_cpu) VALUES (:id, :value);";
-    const char * sql_x_forwarded_for_ID = "INSERT INTO x_forwarded_for (x_forwarded_for_id, x_forwarded_for) VALUES (:id, :value);";
-    const char * sql_cache_control_b_ID = "INSERT INTO cache_control_b (cache_control_b_id, cache_control_b) VALUES (:id, :value);";
-    const char * sql_via_ID = "INSERT INTO via (via_id, via) VALUES (:id, :value);";
-    const char * sql_if_modified_since_ID = "INSERT INTO if_modified_since (if_modified_since_id, if_modified_since) VALUES (:id, :value);";
-    const char * sql_if_none_match_ID = "INSERT INTO if_none_match (if_none_match_id, if_none_match) VALUES (:id, :value);";
-    const char * sql_pragma_b_ID = "INSERT INTO pragma_b (pragma_b_id, pragma_b) VALUES (:id, :value);";
+    const char * sql_request_method_ID = "INSERT OR IGNORE INTO request_method (request_method_id, request_method) VALUES (:id, :value);";
+    const char * sql_uri_ID = "INSERT OR IGNORE INTO uri (uri_id, uri) VALUES (:id, :value);";
+    const char * sql_http_version_b_ID = "INSERT OR IGNORE INTO http_version_b (http_version_b_id, http_version_b) VALUES (:id, :value);";
+    const char * sql_hosts_ID = "INSERT OR IGNORE INTO hosts (host_id, host) VALUES (:id, :value);";
+    const char * sql_connection_b_ID = "INSERT OR IGNORE INTO connection_b (connection_b_id, connection_b) VALUES (:id, :value);";
+    const char * sql_accept_ID = "INSERT OR IGNORE INTO accept (accept_id, accept) VALUES (:id, :value);";
+    const char * sql_user_agent_ID = "INSERT OR IGNORE INTO user_agent (user_agent_id, user_agent) VALUES (:id, :value);";
+    const char * sql_dnt_ID = "INSERT OR IGNORE INTO dnt (dnt_id, dnt) VALUES (:id, :value);";
+    const char * sql_referrer_ID = "INSERT OR IGNORE INTO referrer (referrer_id, referrer) VALUES (:id, :value);";
+    const char * sql_accept_encoding_ID = "INSERT OR IGNORE INTO accept_encoding (accept_encoding_id, accept_encoding) VALUES (:id, :value);";
+    const char * sql_accept_language_ID = "INSERT OR IGNORE INTO accept_language (accept_language_id, accept_language) VALUES (:id, :value);";
+    const char * sql_cookie_ID = "INSERT OR IGNORE INTO cookie (cookie_id, cookie) VALUES (:id, :value);";
+    const char * sql_x_requested_with_ID = "INSERT OR IGNORE INTO x_requested_with (x_requested_with_id, x_requested_with) VALUES (:id, :value);";
+    const char * sql_content_type_b_ID = "INSERT OR IGNORE INTO content_type_b (content_type_b_id, content_type_b) VALUES (:id, :value);";
+    const char * sql_content_length_b_ID = "INSERT OR IGNORE INTO content_length_b (content_length_b_id, content_length_b) VALUES (:id, :value);";
+    const char * sql_proxy_connection_ID = "INSERT OR IGNORE INTO proxy_connection (proxy_connection_id, proxy_connection) VALUES (:id, :value);";
+    const char * sql_accept_charset_ID = "INSERT OR IGNORE INTO accept_charset (accept_charset_id, accept_charset) VALUES (:id, :value);";
+    const char * sql_ua_cpu_ID = "INSERT OR IGNORE INTO ua_cpu (ua_cpu_id, ua_cpu) VALUES (:id, :value);";
+    const char * sql_x_forwarded_for_ID = "INSERT OR IGNORE INTO x_forwarded_for (x_forwarded_for_id, x_forwarded_for) VALUES (:id, :value);";
+    const char * sql_cache_control_b_ID = "INSERT OR IGNORE INTO cache_control_b (cache_control_b_id, cache_control_b) VALUES (:id, :value);";
+    const char * sql_via_ID = "INSERT OR IGNORE INTO via (via_id, via) VALUES (:id, :value);";
+    const char * sql_if_modified_since_ID = "INSERT OR IGNORE INTO if_modified_since (if_modified_since_id, if_modified_since) VALUES (:id, :value);";
+    const char * sql_if_none_match_ID = "INSERT OR IGNORE INTO if_none_match (if_none_match_id, if_none_match) VALUES (:id, :value);";
+    const char * sql_pragma_b_ID = "INSERT OR IGNORE INTO pragma_b (pragma_b_id, pragma_b) VALUES (:id, :value);";
     
     // F
-    const char * sql_http_version_f_ID = "INSERT INTO http_version_f (http_version_f_id, http_version_f) VALUES (:id, :value);";
-    const char * sql_http_status_code_ID = "INSERT INTO http_status_code (http_status_code_id, http_status_code) VALUES (:id, :value);";
-    const char * sql_http_status_text_ID = "INSERT INTO http_status_text (http_status_text_id, http_status_text) VALUES (:id, :value);";
-    const char * sql_x_powered_by_ID = "INSERT INTO x_powered_by (x_powered_by_id, x_powered_by) VALUES (:id, :value);";
-    const char * sql_expires_ID = "INSERT INTO expires (expires_id, expires) VALUES (:id, :value);";
-    const char * sql_cache_control_f_ID = "INSERT INTO cache_control_f (cache_control_f_id, cache_control_f) VALUES (:id, :value);";
-    const char * sql_pragma_f_ID = "INSERT INTO pragma_f (pragma_f_id, pragma_f) VALUES (:id, :value);";
-    const char * sql_vary_ID = "INSERT INTO vary (vary_id, vary) VALUES (:id, :value);";
-    const char * sql_content_encoding_ID = "INSERT INTO content_encoding (content_encoding_id, content_encoding) VALUES (:id, :value);";
-    const char * sql_content_length_f_ID = "INSERT INTO content_length_f (content_length_f_id, content_length_f) VALUES (:id, :value);";
-    const char * sql_connection_f_ID = "INSERT INTO connection_f (connection_f_id, connection_f) VALUES (:id, :value);";
-    const char * sql_content_type_f_ID = "INSERT INTO content_type_f (content_type_f_id, content_type_f) VALUES (:id, :value);";
-    const char * sql_status_ID = "INSERT INTO status (status_id, status) VALUES (:id, :value);";
-    const char * sql_keep_alive_ID = "INSERT INTO keep_alive (keep_alive_id, keep_alive) VALUES (:id, :value);";
+    const char * sql_http_version_f_ID = "INSERT OR IGNORE INTO http_version_f (http_version_f_id, http_version_f) VALUES (:id, :value);";
+    const char * sql_http_status_code_ID = "INSERT OR IGNORE INTO http_status_code (http_status_code_id, http_status_code) VALUES (:id, :value);";
+    const char * sql_http_status_text_ID = "INSERT OR IGNORE INTO http_status_text (http_status_text_id, http_status_text) VALUES (:id, :value);";
+    const char * sql_x_powered_by_ID = "INSERT OR IGNORE INTO x_powered_by (x_powered_by_id, x_powered_by) VALUES (:id, :value);";
+    const char * sql_expires_ID = "INSERT OR IGNORE INTO expires (expires_id, expires) VALUES (:id, :value);";
+    const char * sql_cache_control_f_ID = "INSERT OR IGNORE INTO cache_control_f (cache_control_f_id, cache_control_f) VALUES (:id, :value);";
+    const char * sql_pragma_f_ID = "INSERT OR IGNORE INTO pragma_f (pragma_f_id, pragma_f) VALUES (:id, :value);";
+    const char * sql_vary_ID = "INSERT OR IGNORE INTO vary (vary_id, vary) VALUES (:id, :value);";
+    const char * sql_content_encoding_ID = "INSERT OR IGNORE INTO content_encoding (content_encoding_id, content_encoding) VALUES (:id, :value);";
+    const char * sql_content_length_f_ID = "INSERT OR IGNORE INTO content_length_f (content_length_f_id, content_length_f) VALUES (:id, :value);";
+    const char * sql_connection_f_ID = "INSERT OR IGNORE INTO connection_f (connection_f_id, connection_f) VALUES (:id, :value);";
+    const char * sql_content_type_f_ID = "INSERT OR IGNORE INTO content_type_f (content_type_f_id, content_type_f) VALUES (:id, :value);";
+    const char * sql_status_ID = "INSERT OR IGNORE INTO status (status_id, status) VALUES (:id, :value);";
+    const char * sql_keep_alive_ID = "INSERT OR IGNORE INTO keep_alive (keep_alive_id, keep_alive) VALUES (:id, :value);";
 
     // H
-    const char * sql_messages_ID = "INSERT INTO messages (messages_id, messages) VALUES (:id, :value);";
-    const char * sql_apache_handler_ID = "INSERT INTO apache_handler (apache_handler_id, apache_handler) VALUES (:id, :value);";
-    const char * sql_producer_ID = "INSERT INTO producer (producer_id, producer) VALUES (:id, :value);";
-    const char * sql_server_ID = "INSERT INTO server (server_id, server) VALUES (:id, :value);";
-    const char * sql_engine_mode_ID = "INSERT INTO engine_mode (engine_mode_id, engine_mode) VALUES (:id, :value);";
-    const char * sql_action_ID = "INSERT INTO action (action_id, action) VALUES (:id, :value);";
-    const char * sql_apache_error_ID = "INSERT INTO apache_error (apache_error_id, apache_error) VALUES (:id, :value);";
-    const char * sql_xml_parser_error_ID = "INSERT INTO xml_parser_error (xml_parser_error_id, xml_parser_error) VALUES (:id, :value);";
+    const char * sql_messages_ID = "INSERT OR IGNORE INTO messages (messages_id, messages) VALUES (:id, :value);";
+    const char * sql_apache_handler_ID = "INSERT OR IGNORE INTO apache_handler (apache_handler_id, apache_handler) VALUES (:id, :value);";
+    const char * sql_producer_ID = "INSERT OR IGNORE INTO producer (producer_id, producer) VALUES (:id, :value);";
+    const char * sql_server_ID = "INSERT OR IGNORE INTO server (server_id, server) VALUES (:id, :value);";
+    const char * sql_engine_mode_ID = "INSERT OR IGNORE INTO engine_mode (engine_mode_id, engine_mode) VALUES (:id, :value);";
+    const char * sql_action_ID = "INSERT OR IGNORE INTO action (action_id, action) VALUES (:id, :value);";
+    const char * sql_apache_error_ID = "INSERT OR IGNORE INTO apache_error (apache_error_id, apache_error) VALUES (:id, :value);";
+    const char * sql_xml_parser_error_ID = "INSERT OR IGNORE INTO xml_parser_error (xml_parser_error_id, xml_parser_error) VALUES (:id, :value);";
     
     
     
