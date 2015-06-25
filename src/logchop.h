@@ -31,6 +31,8 @@
 #include <chrono>
 
 
+
+
 // standard library header for ordered map
 #include <unordered_map>
 #include <get_unordered_map.h> // part of this program
@@ -41,11 +43,6 @@ using namespace std;
 using std::vector;
 using std::unordered_map;
 
-int ID_from_map(string key, unordered_map<string,int>& mymap, int debug);
-
-void commit_maps(sqlite3 *db, const char *sql, unordered_map<string, int>& mymap, int debug);
-
-void bind_ID (sqlite3_stmt *stmt, const char * colonidstring, int ID, int debug);
 
 int logchop(string database, string logfile, string rulesdatafile, vector<pair<int,string>> results, int debug, int force);
 

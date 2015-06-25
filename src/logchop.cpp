@@ -24,6 +24,8 @@
 #include <boost/regex.hpp>
 #include <chrono>
 
+#include <time.h>
+#include <sstream> // for converting time_t to str
 
 // standard library header for ordered map
 #include <unordered_map>
@@ -34,6 +36,58 @@
 using namespace std;
 using std::vector;
 using std::unordered_map;
+
+using std::string;
+//using std::sstream;
+using std::stringstream;
+
+// convert Apache log time to unix time using this function http://www.thejach.com/view/2012/7/apaches_common_log_format_datetime_converted_to_unix_timestamp_with_c
+//#include <string>
+
+/*
+ * Parses apache logtime into tm, converts to time_t, and reformats to str.
+ * logtime should be the format: day/month/year:hour:minute:second zone
+ * day = 2*digit
+ * month = 3*letter
+ * year = 4*digit
+ * hour = 2*digit
+ * minute = 2*digit
+ * second = 2*digit
+ * zone = (`+' | `-') 4*digit
+ *
+ * e.g. 04/Apr/2012:10:37:29 -0500
+ */
+string logtimeToUnix(const string& logtime) {
+  struct tm tm;
+  time_t t;
+  if (strptime(logtime.c_str(), "%d/%b/%Y:%H:%M:%S %Z", &tm) == NULL)
+    return "-";
+  
+  tm.tm_isdst = 0; // Force dst off
+  // Parse the timezone, the five digits start with the sign at idx 21.
+  int hours = 10*(logtime[22] - '0') + logtime[23] - '0';
+  int mins = 10*(logtime[24] - '0') + logtime[25] - '0';
+  int off_secs = 60*60*hours + 60*mins;
+  if (logtime[21] == '-')
+    off_secs *= -1;
+
+  t = mktime(&tm);
+  if (t == -1)
+    return "-";
+  t -= timezone; // Local timezone
+  t += off_secs;
+
+  string retval;
+  stringstream stream;
+  stream << t;
+  stream >> retval;
+  return retval;
+}
+
+
+
+
+
 
 
 
@@ -355,6 +409,10 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
   // [25/Feb/2014:14:00:43 +0000] UwyiC38AAQEAAEx4slsAAAAG 125.210.204.242 40996 192.168.1.103 80
   boost::regex A_regex("^\\[(.*)\\]\\s(.{24})\\s(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s(\\d+)\\s(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s(\\d+).*"); // 1st match is TIMESTAMP, 2nd match is APACHE_UID, 3rd match is SOURCE_IP, 4th match is SOURCE_PORT, 5th match is DESTINATION_IP, 6th match is DESTINATION_PORT
   
+  
+
+  
+  
   // matches for section B (request headers)
   boost::regex B_regex("^(\\w+)\\s(.*)\\s(HTTP\\/\\d\\.\\d).*"); // 1st match is request method, 2nd match is URI, 3rd match is HTTP version
   boost::regex B_regex_host("^Host:(.*?)$");
@@ -441,7 +499,7 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
   sqlite3_stmt *stmt_insert_main; // compiled statement handle (pointer of type sqlite3_stmt)
   prepared_statements_map.insert({"sql_insert_main",	make_tuple(sql_insert_main, &stmt_insert_main)});
   
-  const char *sql_insert_A = "INSERT INTO A (UNIQUE_ID, TIMESTAMP, SOURCE_IP_ID, SOURCE_PORT_ID, DESTINATION_IP_ID, DESTINATION_PORT_ID) VALUES (:UNIQUE_ID, :TIMESTAMP, :SOURCE_IP_ID, :SOURCE_PORT_ID, :DESTINATION_IP_ID, :DESTINATION_PORT_ID);";
+  const char *sql_insert_A = "INSERT INTO A (UNIQUE_ID, TIMESTAMP, UNIXTIME, SOURCE_IP_ID, SOURCE_PORT_ID, DESTINATION_IP_ID, DESTINATION_PORT_ID) VALUES (:UNIQUE_ID, :TIMESTAMP, :UNIXTIME, :SOURCE_IP_ID, :SOURCE_PORT_ID, :DESTINATION_IP_ID, :DESTINATION_PORT_ID);";
   sqlite3_stmt *stmt_insert_A;
   prepared_statements_map.insert({"sql_insert_A", make_tuple(sql_insert_A, &stmt_insert_A)});
   
@@ -1181,7 +1239,7 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
     string UNIQUE_ID, HEADER, A, B, C, D, E, F, G, H, I, J, K; // "high level" strings
     
     // strings for matches in A
-    string TIMESTAMP, SOURCE_IP, SOURCE_PORT, DESTINATION_IP, DESTINATION_PORT;
+    string TIMESTAMP, UNIXTIME, SOURCE_IP, SOURCE_PORT, DESTINATION_IP, DESTINATION_PORT;
     int SOURCE_IP_ID, SOURCE_PORT_ID, DESTINATION_IP_ID, DESTINATION_PORT_ID;
     
     // strings for matches in B
@@ -1238,7 +1296,17 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
 	    A = headerdata;
 	    // submatch the apache UNIQUE_ID from the A header
 	    if (boost::regex_match(A.c_str(), match, A_regex)) {
-	      TIMESTAMP = match[1];
+	      // WALRUS
+              TIMESTAMP = match[1]; // something like 14/Jun/2015:09:32:25 +0100
+              // need to convert this timestamp to a sqlite timestamp YYYY-MM-DD HH:MM:SS[+-]HH:MM
+              // try this http://www.thejach.com/view/2012/7/apaches_common_log_format_datetime_converted_to_unix_timestamp_with_c
+              // then use sqlite's internal mechanism to convert from unix timestamp to something more user friendly
+              UNIXTIME=logtimeToUnix(TIMESTAMP);
+              if (debug) {cout << "Apache timestamp is " << TIMESTAMP << " Unix timestamp is " << UNIXTIME << endl;}
+              
+              
+              
+              
 	      UNIQUE_ID = match[2];
               
 	      SOURCE_IP = match[3];
@@ -1277,7 +1345,8 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
 	    // these values bound to insert_A sql statement
 	    if (debug) {cout << "Binding data for table A" << endl;};
 	    sqlite3_bind_text(stmt_insert_A, sqlite3_bind_parameter_index(stmt_insert_A, ":TIMESTAMP"), TIMESTAMP.c_str(), TIMESTAMP.length(), 0);
-	    
+	    sqlite3_bind_text(stmt_insert_A, sqlite3_bind_parameter_index(stmt_insert_A, ":UNIXTIME"), UNIXTIME.c_str(), UNIXTIME.length(), 0);
+            
             
             // bind ID integers
             bind_ID (stmt_insert_A, ":SOURCE_IP_ID", SOURCE_IP_ID, debug);
@@ -1879,7 +1948,7 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
 	    UNIQUE_ID=HEADER=A=B=C=D=E=F=G=H="";
 	    
 	    // clear A strings
-	    TIMESTAMP=SOURCE_IP=SOURCE_PORT=DESTINATION_IP=DESTINATION_PORT="";
+	    TIMESTAMP=UNIXTIME=SOURCE_IP=SOURCE_PORT=DESTINATION_IP=DESTINATION_PORT="";
 	    REQUEST_METHOD=REQUEST_URI=REQUEST_HTTP_VERSION="";
 	    
 	    // clear B strings
