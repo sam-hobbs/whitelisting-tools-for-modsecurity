@@ -30,6 +30,7 @@
 // standard library header for ordered map
 #include <unordered_map>
 #include <get_unordered_map.h> // part of this program
+#include <ruledata.h> // rule data structure
 
 
 
@@ -137,8 +138,8 @@ void commit_maps(sqlite3 *db, const char *sql, unordered_map<string, int>& mymap
     sqlite3_stmt *stmt;
     const char *pzTail;
     
-    int rc = sqlite3_prepare_v2(db, sql, strlen(sql), &stmt, &pzTail);
-    if( rc != SQLITE_OK ){
+    int prepare_rc = sqlite3_prepare_v2(db, sql, strlen(sql), &stmt, &pzTail);
+    if( prepare_rc != SQLITE_OK ){
       cerr << "SQL error compiling the prepared statement" << endl;
       cerr << "The error was: "<< sqlite3_errmsg(db) << endl;
     } else {
@@ -166,16 +167,16 @@ void commit_maps(sqlite3 *db, const char *sql, unordered_map<string, int>& mymap
 	}
 	
 	// reset statement
-	int rc = sqlite3_reset(stmt);
-	if( rc != SQLITE_OK ){
+	int reset_rc = sqlite3_reset(stmt);
+	if( reset_rc != SQLITE_OK ){
             cerr << "SQL error resetting the prepared statement, the error was: "<< sqlite3_errmsg(db) << endl;
         } else {
             if (debug) {cout << "Prepared statement was reset successfully" << endl;}
         }
         
         // clear variables        
-        rc = sqlite3_clear_bindings(stmt);
-        if( rc != SQLITE_OK ){
+        int clear_bindings_rc = sqlite3_clear_bindings(stmt);
+        if( clear_bindings_rc != SQLITE_OK ){
             cerr << "SQL error clearing the bindings, the error was: "<< sqlite3_errmsg(db) << endl;
         } else {
             if (debug) {cout << "Bindings were cleared successfully" << endl;}
@@ -210,16 +211,19 @@ void bind_ID (sqlite3_stmt *stmt, const char * colonidstring, int ID, int debug)
               
               
               
-map <string, pair<string,int>> ruledata (string ruledatafile, int debug) {
+map <string, rule_data> generateruledatamap (string ruledatafile, int debug) {
     
     if (debug) {cout << "Rule data file is " << ruledatafile << endl;}
     if (debug) {cout << "Generating ruledata map" << endl;}
     
-    map <string, pair<string, int>> results;
+    map <string, rule_data> results;
     
-    // search through modsecurity log file for line numbers of headers, save them along with the line numbers they appear on
-    boost::regex ruledataregex("^(\\d{6})\\s*(\\w+)\\s*(\\d).*$");
-  
+    // search through ruledata configuration file for parts of ruledata separated by any amount of whitespace
+    //boost::regex ruledataregex("^(\\d{6,7})\\s*(\\w+)\\s*(\\d).*$");
+    
+    //RULE_ID TABLENAME ANOMALY_SCORE SQL_SCORE XSS_SCORE TROJAN_SCORE OUTBOUND_ANOMALY_SCORE AUTOMATION_SCORE PROFILER_SCORE
+    boost::regex ruledataregex("^(\\d{6,7})\\s*(\\w+)\\s*(\\+?\\d+)\\s*(\\+?\\d+)\\s*(\\+?\\d+)\\s*(\\+?\\d+)\\s*(\\+?\\d+)\\s*(\\+?\\d+)\\s*(\\+?\\d+).*$");
+    
     int line = 0;
     string str;
     ifstream in(ruledatafile);
@@ -232,16 +236,24 @@ map <string, pair<string,int>> ruledata (string ruledatafile, int debug) {
         if (boost::regex_match(str.c_str(), matches, ruledataregex)) {
             //matches[0] contains the original string. matches[n] contains a submatch for each matching subexpression
             if (debug) { cout << "match on line " << line << " : " << matches[0] << endl;}
-            string ruleno = matches[1];
+            string ruleid = matches[1];
             string rulefile = matches[2];
-            string scorestring = matches[3];
-            int score = atoi(scorestring.c_str());
+            // boost cmatch must be converted to a string using the ".str()" function, and then to a const char * using the ".c_str()" function
+            signed int anomaly_score = atoi(matches[3].str().c_str());
+            signed int sql_score = atoi(matches[4].str().c_str());
+            signed int xss_score = atoi(matches[5].str().c_str());
+            signed int trojan_score = atoi(matches[6].str().c_str());
+            signed int outbound_anomaly_score = atoi(matches[7].str().c_str());
+            signed int automation_score = atoi(matches[8].str().c_str());
+            signed int profile_score = atoi(matches[9].str().c_str());
             
-            if (debug) {cout << "rule number is: " << ruleno << " rule file is: " << rulefile << " score is: " << score << endl;}
-      
-            // insert a new key into the map, value is a pair containing the rulefile and source
-            results.insert({ruleno,make_pair(rulefile,score)});
-            //prepared_statements_map.insert({"sql_insert_crs_ip_forensics",make_tuple(sql_insert_crs_ip_forensics, &stmt_insert_crs_ip_forensics)});
+            if (debug) {cout << "rule id number is: " << ruleid << " rule file is: " << rulefile << " anomaly score is: " << anomaly_score << " sql score is " << sql_score << " xss score is " << sql_score << " trojan_score is " << trojan_score << " outbound anomaly score is " <<  outbound_anomaly_score << " profile score is " << profile_score << endl;}
+            
+            // create variable of type ruledata to hold all the information extracted on this line
+            rule_data lineruledata = {ruleid, rulefile, anomaly_score, sql_score, xss_score, trojan_score, outbound_anomaly_score, automation_score, profile_score};
+            
+            // insert a new key into the map, value is type ruledata
+            results.insert({ruleid,lineruledata});
         } else {
             if (debug) {cout << "No match on line " << line << ", data: " << str << endl;}
         }
@@ -362,12 +374,9 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
   
   
   
-  //debug = 1;
-  // WALRUS
   cout << "Generating rule data map from the rulesdata file " << rulesdatafile; 
-  map <string, pair<string,int>> ruledatamap = ruledata (rulesdatafile, debug);
+  map <string, rule_data> ruledatamap = generateruledatamap (rulesdatafile, debug);
   cout << " ...done" << endl;
-  //debug = 0;
   
   
   // generate a map from the rule filename string to a counter
@@ -376,11 +385,8 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
   
   for (const auto &iterator : ruledatamap) {
       // add the current rule file string to the set 
-      
-      //cout << (iterator.second).first << endl;
-      //cout << (iterator.second).second << endl;
       int foo;
-      string ruledatafile = (iterator.second).first;
+      string ruledatafile = (iterator.second).table_name;
       rulefiletocountermap.insert ({ruledatafile, foo});
   }
   
@@ -511,12 +517,10 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
   sqlite3_stmt *stmt_insert_F;
   prepared_statements_map.insert({"sql_insert_F",make_tuple(sql_insert_F, &stmt_insert_F)});
   
-  // messages, engine mode
   const char *sql_insert_H = "INSERT INTO H (UNIQUE_ID, MESSAGES_ID, APACHE_HANDLER_ID, APACHE_ERROR_ID, STOPWATCH, STOPWATCH2, PRODUCER_ID, SERVER_ID, ENGINE_MODE_ID, ACTION_ID, XML_PARSER_ERROR_ID) VALUES (:UNIQUE_ID, :TRAILER_MESSAGES_ID, :TRAILER_APACHE_HANDLER_ID, :TRAILER_APACHE_ERROR_ID, :TRAILER_STOPWATCH, :TRAILER_STOPWATCH2, :TRAILER_PRODUCER_ID, :TRAILER_SERVER_ID, :TRAILER_ENGINE_MODE_ID, :TRAILER_ACTION_ID, :TRAILER_XML_PARSER_ERROR_ID);";
   sqlite3_stmt *stmt_insert_H;
   prepared_statements_map.insert({"sql_insert_H",make_tuple(sql_insert_H, &stmt_insert_H)});
 
-  
   
   // ************************* PROTOCOL VIOLATION **************************  
   const char *sql_insert_crs_protocol_violation = "INSERT INTO CRS_20_PROTOCOL_VIOLATIONS (UNIQUE_ID, '960911', '981227', '960000', '960912', '960914', '960915','960016','960011','960012','960902','960022','960020','958291','958230','958231','958295','950107','950109','950108','950801','950116','960014','960901','960018') VALUES (:UNIQUE_ID, :960911, :981227, :960000, :960912, :960914, :960915,:960016,:960011,:960012,:960902,:960022,:960020,:958291,:958230,:958231,:958295,:950107,:950109,:950108,:950801,:950116,:960014,:960901,:960018);";
@@ -727,12 +731,22 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
   sqlite3_stmt *stmt_insert_crs_marketing;
   prepared_statements_map.insert({"sql_insert_crs_marketing",make_tuple(sql_insert_crs_marketing, &stmt_insert_crs_marketing)});
 
+  // ************************* AVS TRAFFIC **************************
+  const char *sql_insert_crs_avs_traffic = "INSERT INTO CRS_11_AVS_TRAFFIC (UNIQUE_ID, '981033', '981034', '981035') VALUES (:UNIQUE_ID, :981033, :981034, :981035);";
+  sqlite3_stmt *stmt_insert_crs_avs_traffic;
+  prepared_statements_map.insert({"sql_insert_crs_avs_traffic",make_tuple(sql_insert_crs_avs_traffic, &stmt_insert_crs_avs_traffic)});
+    
+  // ************************* SETUP **************************
+  const char *sql_insert_crs_setup = "INSERT INTO CRS_10_SETUP (UNIQUE_ID, '900001', '900005', '900017', '900018', '900019', '900020', '900021') VALUES (:UNIQUE_ID, :900001, :900005, :900017, :900018, :900019, :900020, :900021);";
+  sqlite3_stmt *stmt_insert_crs_setup;
+  prepared_statements_map.insert({"sql_insert_crs_setup",make_tuple(sql_insert_crs_setup, &stmt_insert_crs_setup)});
   
   
-  // WALRUS - sql statement for inserting scores into database
-  const char *sql_insert_scores = "INSERT INTO SCORES (UNIQUE_ID, TOTAL_SCORE, CRS_10_SETUP, CRS_20_PROTOCOL_VIOLATIONS, CRS_21_PROTOCOL_ANOMALIES, CRS_23_REQUEST_LIMITS, CRS_30_HTTP_POLICY, CRS_35_BAD_ROBOTS, CRS_40_GENERIC_ATTACKS, CRS_41_SQL_INJECTION_ATTACKS, CRS_41_XSS_ATTACKS, CRS_42_TIGHT_SECURITY, CRS_45_TROJANS, CRS_47_COMMON_EXCEPTIONS, CRS_48_LOCAL_EXCEPTIONS, CRS_49_INBOUND_BLOCKING, CRS_50_OUTBOUND, CRS_59_OUTBOUND_BLOCKING, CRS_60_CORRELATION, CRS_11_BRUTE_FORCE, CRS_11_DOS_PROTECTION, CRS_16_SCANNER_INTEGRATION, CRS_11_PROXY_ABUSE, CRS_11_SLOW_DOS_PROTECTION, CRS_25_CC_TRACK_PAN, CRS_40_APPSENSOR_DETECTION_POINT, CRS_40_HTTP_PARAMETER_POLLUTION, CRS_42_CSP_ENFORCEMENT, CRS_46_SCANNER_INTEGRATION, CRS_48_BAYES_ANALYSIS, CRS_55_RESPONSE_PROFILING, CRS_56_PVI_CHECKS, CRS_61_IP_FORENSICS, CRS_10_IGNORE_STATIC, CRS_11_AVS_TRAFFIC, CRS_13_XML_ENABLER, CRS_16_AUTHENTICATION_TRACKING, CRS_16_SESSION_HIJACKING, CRS_16_USERNAME_TRACKING, CRS_25_CC_KNOWN, CRS_42_COMMENT_SPAM, CRS_43_CSRF_PROTECTION, CRS_46_AV_SCANNING, CRS_47_SKIP_OUTBOUND_CHECKS, CRS_49_HEADER_TAGGING, CRS_55_APPLICATION_DEFECTS, CRS_55_MARKETING, CRS_59_HEADER_TAGGING) VALUES (:UNIQUE_ID, :total_score, :crs_10_setup, :crs_20_protocol_violations, :crs_21_protocol_anomalies, :crs_23_request_limits, :crs_30_http_policy, :crs_35_bad_robots, :crs_40_generic_attacks, :crs_41_sql_injection_attacks, :crs_41_xss_attacks, :crs_42_tight_security, :crs_45_trojans, :crs_47_common_exceptions, :crs_48_local_exceptions, :crs_49_inbound_blocking, :crs_50_outbound, :crs_59_outbound_blocking, :crs_60_correlation, :crs_11_brute_force, :crs_11_dos_protection, :crs_16_scanner_integration, :crs_11_proxy_abuse, :crs_11_slow_dos_protection, :crs_25_cc_track_pan, :crs_40_appsensor_detection_point, :crs_40_http_parameter_pollution, :crs_42_csp_enforcement, :crs_46_scanner_integration, :crs_48_bayes_analysis, :crs_55_response_profiling, :crs_56_pvi_checks, :crs_61_ip_forensics, :crs_10_ignore_static, :crs_11_avs_traffic, :crs_13_xml_enabler, :crs_16_authentication_tracking, :crs_16_session_hijacking, :crs_16_username_tracking, :crs_25_cc_known, :crs_42_comment_spam, :crs_43_csrf_protection, :crs_46_av_scanning, :crs_47_skip_outbound_checks, :crs_49_header_tagging, :crs_55_application_defects, :crs_55_marketing, :crs_59_header_tagging);";
-  sqlite3_stmt *stmt_insert_scores;
-  prepared_statements_map.insert({"sql_insert_scores",make_tuple(sql_insert_scores, &stmt_insert_scores)});
+  
+  // sql statement for inserting scores into database
+  const char *sql_insert_anomaly_scores = "INSERT INTO ANOMALY_SCORES (UNIQUE_ID, TOTAL_SCORE, CRS_10_SETUP, CRS_20_PROTOCOL_VIOLATIONS, CRS_21_PROTOCOL_ANOMALIES, CRS_23_REQUEST_LIMITS, CRS_30_HTTP_POLICY, CRS_35_BAD_ROBOTS, CRS_40_GENERIC_ATTACKS, CRS_41_SQL_INJECTION_ATTACKS, CRS_41_XSS_ATTACKS, CRS_42_TIGHT_SECURITY, CRS_45_TROJANS, CRS_47_COMMON_EXCEPTIONS, CRS_48_LOCAL_EXCEPTIONS, CRS_49_INBOUND_BLOCKING, CRS_50_OUTBOUND, CRS_59_OUTBOUND_BLOCKING, CRS_60_CORRELATION, CRS_11_BRUTE_FORCE, CRS_11_DOS_PROTECTION, CRS_16_SCANNER_INTEGRATION, CRS_11_PROXY_ABUSE, CRS_11_SLOW_DOS_PROTECTION, CRS_25_CC_TRACK_PAN, CRS_40_APPSENSOR_DETECTION_POINT, CRS_40_HTTP_PARAMETER_POLLUTION, CRS_42_CSP_ENFORCEMENT, CRS_46_SCANNER_INTEGRATION, CRS_48_BAYES_ANALYSIS, CRS_55_RESPONSE_PROFILING, CRS_56_PVI_CHECKS, CRS_61_IP_FORENSICS, CRS_10_IGNORE_STATIC, CRS_11_AVS_TRAFFIC, CRS_13_XML_ENABLER, CRS_16_AUTHENTICATION_TRACKING, CRS_16_SESSION_HIJACKING, CRS_16_USERNAME_TRACKING, CRS_25_CC_KNOWN, CRS_42_COMMENT_SPAM, CRS_43_CSRF_PROTECTION, CRS_46_AV_SCANNING, CRS_47_SKIP_OUTBOUND_CHECKS, CRS_49_HEADER_TAGGING, CRS_55_APPLICATION_DEFECTS, CRS_55_MARKETING, CRS_59_HEADER_TAGGING) VALUES (:UNIQUE_ID, :total_score, :crs_10_setup, :crs_20_protocol_violations, :crs_21_protocol_anomalies, :crs_23_request_limits, :crs_30_http_policy, :crs_35_bad_robots, :crs_40_generic_attacks, :crs_41_sql_injection_attacks, :crs_41_xss_attacks, :crs_42_tight_security, :crs_45_trojans, :crs_47_common_exceptions, :crs_48_local_exceptions, :crs_49_inbound_blocking, :crs_50_outbound, :crs_59_outbound_blocking, :crs_60_correlation, :crs_11_brute_force, :crs_11_dos_protection, :crs_16_scanner_integration, :crs_11_proxy_abuse, :crs_11_slow_dos_protection, :crs_25_cc_track_pan, :crs_40_appsensor_detection_point, :crs_40_http_parameter_pollution, :crs_42_csp_enforcement, :crs_46_scanner_integration, :crs_48_bayes_analysis, :crs_55_response_profiling, :crs_56_pvi_checks, :crs_61_ip_forensics, :crs_10_ignore_static, :crs_11_avs_traffic, :crs_13_xml_enabler, :crs_16_authentication_tracking, :crs_16_session_hijacking, :crs_16_username_tracking, :crs_25_cc_known, :crs_42_comment_spam, :crs_43_csrf_protection, :crs_46_av_scanning, :crs_47_skip_outbound_checks, :crs_49_header_tagging, :crs_55_application_defects, :crs_55_marketing, :crs_59_header_tagging);";
+  sqlite3_stmt *stmt_insert_anomaly_scores;
+  prepared_statements_map.insert({"sql_insert_anomaly_scores",make_tuple(sql_insert_anomaly_scores, &stmt_insert_anomaly_scores)});
   
   
   
@@ -767,461 +781,52 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
 
   
   
-  // integers for rule ID counting WALRUS not required any more but can't delete them until ruleIDmap structure is changed
-  int CRS_SEPARATE_RULES_MATCHED, CRS_PROTOCOL_VIOLATION, CRS_PROTOCOL_ANOMALY, CRS_REQUEST_LIMIT, CRS_HTTP_POLICY, CRS_BAD_ROBOT, CRS_GENERIC_ATTACK, CRS_SQL_INJECTION, CRS_XSS_ATTACK, CRS_TIGHT_SECURITY, CRS_TROJANS, CRS_COMMON_EXCEPTIONS, CRS_LOCAL_EXCEPTIONS, CRS_INBOUND_BLOCKING, CRS_OUTBOUND, CRS_OUTBOUND_BLOCKING, CRS_CORRELATION, CRS_BRUTE_FORCE, CRS_DOS, CRS_PROXY_ABUSE, CRS_SLOW_DOS, CRS_CC_TRACK_PAN, CRS_APPSENSOR, CRS_HTTP_PARAMETER_POLLUTION, CRS_CSP_ENFORCEMENT, CRS_SCANNER_INTEGRATION, CRS_BAYES_ANALYSIS, CRS_RESPONSE_PROFILING, CRS_PVI_CHECKS, CRS_IP_FORENSICS, CRS_IGNORE_STATIC, CRS_AVS_TRAFFIC, CRS_XML_ENABLER, CRS_AUTHENTICATION_TRACKING, CRS_SESSION_HIJACKING, CRS_USERNAME_TRACKING, CRS_CC_KNOWN, CRS_COMMENT_SPAM, CRS_CSRF_PROTECTION, CRS_AV_SCANNING, CRS_SKIP_OUTBOUND_CHECKS, CRS_HEADER_TAGGING, CRS_APPLICATION_DEFECTS, CRS_MARKETING;
+  // map from table name to sql statement
+  map <string, sqlite3_stmt **> tableNameToPreparedStatementMap = {   {"crs_41_sql_xss_attacks", &stmt_insert_crs_xss_attack },
+                                                        {"crs_47_common_exceptions", &stmt_insert_crs_common_exceptions},
+                                                        {"crs_21_protocol_anomalies", &stmt_insert_crs_protocol_anomaly},
+                                                        {"crs_35_bad_robots", &stmt_insert_crs_bad_robot},
+                                                        {"crs_20_protocol_violations", &stmt_insert_crs_protocol_violation},
+                                                        {"crs_23_request_limits", &stmt_insert_crs_request_limit},
+                                                        {"crs_60_correlation", &stmt_insert_crs_correlation},
+                                                        {"crs_50_outbound", &stmt_insert_crs_outbound},
+                                                        {"crs_45_trojans", &stmt_insert_crs_trojans},
+                                                        {"crs_42_tight_security", &stmt_insert_crs_tight_security},
+                                                        {"crs_30_http_policy", &stmt_insert_crs_http_policy},
+                                                        {"crs_41_sql_injection_attacks", &stmt_insert_crs_sql_injection},
+                                                        {"crs_49_inbound_blocking", &stmt_insert_crs_inbound_blocking},
+                                                        {"crs_40_generic_attacks", &stmt_insert_crs_generic_attack},
+                                                        {"crs_59_header_tagging", &stmt_insert_crs_header_tagging},
+                                                        {"crs_11_dos_protection", &stmt_insert_crs_dos},
+                                                        {"crs_55_response_profiling", &stmt_insert_crs_response_profiling},
+                                                        {"crs_11_proxy_abuse", &stmt_insert_crs_proxy_abuse},
+                                                        {"crs_42_csp_enforcement", &stmt_insert_crs_csp_enforcement},
+                                                        {"crs_25_cc_track_pan", &stmt_insert_crs_cc_track_pan},
+                                                        {"crs_40_http_parameter_pollution", &stmt_insert_crs_http_parameter_pollution},
+                                                        {"crs_11_brute_force", &stmt_insert_crs_brute_force},
+                                                        {"crs_16_scanner_integration", &stmt_insert_crs_scanner_integration},
+                                                        {"crs_56_pvi_checks", &stmt_insert_crs_pvi_checks},
+                                                        {"crs_48_bayes_analysis", &stmt_insert_crs_bayes_analysis},
+                                                        {"crs_11_slow_dos_protection", &stmt_insert_crs_slow_dos},
+                                                        {"crs_46_scanner_integration", &stmt_insert_crs_scanner_integration},
+                                                        {"crs_61_ip_forensics", &stmt_insert_crs_ip_forensics},
+                                                        {"crs_49_header_tagging", &stmt_insert_crs_header_tagging},
+                                                        {"crs_55_application_defects", &stmt_insert_crs_application_defects},
+                                                        {"crs_11_avs_traffic", &stmt_insert_crs_avs_traffic},
+                                                        {"crs_43_csrf_protection", &stmt_insert_crs_csrf_protection},
+                                                        {"crs_42_comment_spam", &stmt_insert_crs_comment_spam},
+                                                        {"crs_25_cc_known", &stmt_insert_crs_cc_known},
+                                                        {"crs_10_ignore_static", &stmt_insert_crs_ignore_static},
+                                                        {"crs_16_username_tracking", &stmt_insert_crs_username_tracking},
+                                                        {"crs_13_xml_enabler", &stmt_insert_crs_xml_enabler},
+                                                        {"crs_47_skip_outbound_checks", &stmt_insert_crs_skip_outbound_checks},
+                                                        {"crs_16_session_hijacking", &stmt_insert_crs_session_hijacking},
+                                                        {"crs_46_av_scanning", &stmt_insert_crs_av_scanning},
+                                                        {"crs_55_marketing", &stmt_insert_crs_marketing},
+                                                        {"crs_10_setup", &stmt_insert_crs_setup}
+  };
   
   
-  
-  
-  
-  
-  
-  
-  // WALRUS - change this map, group counters (second part of tuple) not required any more
-  map <string, tuple<sqlite3_stmt **,int *>> ruleIDmap = {	{"960911",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"981227",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"960000",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"960912",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"960914",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"960915",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"960016",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"960011",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"960012",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"960902",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"960022",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"960020",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"958291",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"958230",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"958231",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"958295",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"950107",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"950109",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"950108",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"950801",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"950116",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"960014",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"960901",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"960018",	make_tuple(&stmt_insert_crs_protocol_violation,		&CRS_PROTOCOL_VIOLATION		)	},
-								{"960008",	make_tuple(&stmt_insert_crs_protocol_anomaly,		&CRS_PROTOCOL_ANOMALY		)	},
-								{"960007",	make_tuple(&stmt_insert_crs_protocol_anomaly,		&CRS_PROTOCOL_ANOMALY		)	},
-								{"960015",	make_tuple(&stmt_insert_crs_protocol_anomaly,		&CRS_PROTOCOL_ANOMALY		)	},
-								{"960021",	make_tuple(&stmt_insert_crs_protocol_anomaly,		&CRS_PROTOCOL_ANOMALY		)	},
-								{"960009",	make_tuple(&stmt_insert_crs_protocol_anomaly,		&CRS_PROTOCOL_ANOMALY		)	},
-								{"960006",	make_tuple(&stmt_insert_crs_protocol_anomaly,		&CRS_PROTOCOL_ANOMALY		)	},
-								{"960904",	make_tuple(&stmt_insert_crs_protocol_anomaly,		&CRS_PROTOCOL_ANOMALY		)	},
-								{"960017",	make_tuple(&stmt_insert_crs_protocol_anomaly,		&CRS_PROTOCOL_ANOMALY		)	},
-								{"960209",	make_tuple(&stmt_insert_crs_request_limit,		&CRS_REQUEST_LIMIT		)	},
-								{"960208",	make_tuple(&stmt_insert_crs_request_limit,		&CRS_REQUEST_LIMIT		)	},
-								{"960335",	make_tuple(&stmt_insert_crs_request_limit,		&CRS_REQUEST_LIMIT		)	},
-								{"960341",	make_tuple(&stmt_insert_crs_request_limit,		&CRS_REQUEST_LIMIT		)	},
-								{"960342",	make_tuple(&stmt_insert_crs_request_limit,		&CRS_REQUEST_LIMIT		)	},
-								{"960343",	make_tuple(&stmt_insert_crs_request_limit,		&CRS_REQUEST_LIMIT		)	},
-								{"960032",	make_tuple(&stmt_insert_crs_http_policy,		&CRS_HTTP_POLICY		)	},
-								{"960010",	make_tuple(&stmt_insert_crs_http_policy,		&CRS_HTTP_POLICY		)	},
-								{"960034",	make_tuple(&stmt_insert_crs_http_policy,		&CRS_HTTP_POLICY		)	},
-								{"960035",	make_tuple(&stmt_insert_crs_http_policy,		&CRS_HTTP_POLICY		)	},
-								{"960038",	make_tuple(&stmt_insert_crs_http_policy,		&CRS_HTTP_POLICY		)	},
-								{"990002",	make_tuple(&stmt_insert_crs_bad_robot,			&CRS_BAD_ROBOT			)	},
-								{"990901",	make_tuple(&stmt_insert_crs_bad_robot,			&CRS_BAD_ROBOT			)	},
-								{"990902",	make_tuple(&stmt_insert_crs_bad_robot,			&CRS_BAD_ROBOT			)	},
-								{"990012",	make_tuple(&stmt_insert_crs_bad_robot,			&CRS_BAD_ROBOT			)	},
-								{"950907",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"960024",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950008",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950010",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950011",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950018",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950019",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950012",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950910",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950911",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950117",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950118",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950119",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950120",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"981133",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950009",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950003",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950000",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950005",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950002",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"950006",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"959151",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"958976",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"958977",	make_tuple(&stmt_insert_crs_generic_attack,		&CRS_GENERIC_ATTACK		)	},
-								{"981231",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981260",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981318",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981319",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"950901",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981320",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981300",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981301",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981302",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981303",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981304",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981305",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981306",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981307",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981308",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981309",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981310",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981311",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981312",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981313",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981314",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981315",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981316",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981317",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"950007",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"950001",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"959070",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"959071",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"959072",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"950908",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"959073",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981172",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981173",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981272",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981244",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981255",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981257",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981248",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981277",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981250",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981241",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981252",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981256",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981245",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981276",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981254",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981270",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981240",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981249",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981253",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981242",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981246",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981251",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981247",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"981243",	make_tuple(&stmt_insert_crs_sql_injection,		&CRS_SQL_INJECTION		)	},
-								{"973336",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973337",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973338",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"981136",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"981018",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958016",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958414",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958032",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958026",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958027",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958054",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958418",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958034",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958019",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958013",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958408",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958012",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958423",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958002",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958017",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958007",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958047",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958410",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958415",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958022",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958405",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958419",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958028",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958057",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958031",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958006",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958033",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958038",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958409",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958001",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958005",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958404",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958023",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958010",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958411",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958422",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958036",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958000",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958018",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958406",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958040",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958052",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958037",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958049",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958030",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958041",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958416",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958024",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958059",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958417",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958020",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958045",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958004",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958421",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958009",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958025",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958413",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958051",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958420",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958407",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958056",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958011",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958412",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958008",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958046",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958039",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"958003",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973300",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973301",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973302",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973303",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973304",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973305",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973306",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973307",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973308",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973309",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973310",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973311",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973312",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973313",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973314",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973331",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973315",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973330",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973327",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973326",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973346",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973345",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973324",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973323",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973322",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973348",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973321",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973320",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973318",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973317",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973347",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973335",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973334",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973333",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973344",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973332",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973329",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973328",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973316",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973325",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"973319",	make_tuple(&stmt_insert_crs_xss_attack,			&CRS_XSS_ATTACK			)	},
-								{"950103",	make_tuple(&stmt_insert_crs_tight_security,		&CRS_TIGHT_SECURITY		)	},
-								{"950110",	make_tuple(&stmt_insert_crs_trojans,			&CRS_TROJANS			)	},
-								{"950921",	make_tuple(&stmt_insert_crs_trojans,			&CRS_TROJANS			)	},
-								{"950922",	make_tuple(&stmt_insert_crs_trojans,			&CRS_TROJANS			)	},
-								{"981020",	make_tuple(&stmt_insert_crs_common_exceptions,		&CRS_COMMON_EXCEPTIONS		)	},
-								{"981021",	make_tuple(&stmt_insert_crs_common_exceptions,		&CRS_COMMON_EXCEPTIONS		)	},
-								{"981022",	make_tuple(&stmt_insert_crs_common_exceptions,		&CRS_COMMON_EXCEPTIONS		)	},
-								{"981175",	make_tuple(&stmt_insert_crs_inbound_blocking,		&CRS_INBOUND_BLOCKING		)	},
-								{"981176",	make_tuple(&stmt_insert_crs_inbound_blocking,		&CRS_INBOUND_BLOCKING		)	},
-								{"970007",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970008",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970009",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970010",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970012",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970903",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970016",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970018",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970901",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970021",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970011",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"981177",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"981000",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"981001",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"981003",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"981004",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"981005",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"981006",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"981007",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"981178",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970014",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970015",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970902",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970002",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970003",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970004",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970904",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"970013",	make_tuple(&stmt_insert_crs_outbound,			&CRS_OUTBOUND			)	},
-								{"981200",	make_tuple(&stmt_insert_crs_outbound_blocking,		&CRS_OUTBOUND_BLOCKING		)	},
-								{"981201",	make_tuple(&stmt_insert_crs_correlation,		&CRS_CORRELATION		)	},
-								{"981202",	make_tuple(&stmt_insert_crs_correlation,		&CRS_CORRELATION		)	},
-								{"981203",	make_tuple(&stmt_insert_crs_correlation,		&CRS_CORRELATION		)	},
-								{"981204",	make_tuple(&stmt_insert_crs_correlation,		&CRS_CORRELATION		)	},
-								{"981205",	make_tuple(&stmt_insert_crs_correlation,		&CRS_CORRELATION		)	},
-								{"981036",	make_tuple(&stmt_insert_crs_brute_force,		&CRS_BRUTE_FORCE		)	},
-								{"981037",	make_tuple(&stmt_insert_crs_brute_force,		&CRS_BRUTE_FORCE		)	},
-								{"981038",	make_tuple(&stmt_insert_crs_brute_force,		&CRS_BRUTE_FORCE		)	},
-								{"981039",	make_tuple(&stmt_insert_crs_brute_force,		&CRS_BRUTE_FORCE		)	},
-								{"981040",	make_tuple(&stmt_insert_crs_brute_force,		&CRS_BRUTE_FORCE		)	},
-								{"981041",	make_tuple(&stmt_insert_crs_brute_force,		&CRS_BRUTE_FORCE		)	},
-								{"981042",	make_tuple(&stmt_insert_crs_brute_force,		&CRS_BRUTE_FORCE		)	},
-								{"981043",	make_tuple(&stmt_insert_crs_brute_force,		&CRS_BRUTE_FORCE		)	},
-								{"981044",	make_tuple(&stmt_insert_crs_dos,			&CRS_DOS			)	},
-								{"981045",	make_tuple(&stmt_insert_crs_dos,			&CRS_DOS			)	},
-								{"981046",	make_tuple(&stmt_insert_crs_dos,			&CRS_DOS			)	},
-								{"981047",	make_tuple(&stmt_insert_crs_dos,			&CRS_DOS			)	},
-								{"981048",	make_tuple(&stmt_insert_crs_dos,			&CRS_DOS			)	},
-								{"981049",	make_tuple(&stmt_insert_crs_dos,			&CRS_DOS			)	},
-								{"981050",	make_tuple(&stmt_insert_crs_proxy_abuse,		&CRS_PROXY_ABUSE		)	},
-								{"981051",	make_tuple(&stmt_insert_crs_slow_dos,			&CRS_SLOW_DOS			)	},
-								{"981052",	make_tuple(&stmt_insert_crs_slow_dos,			&CRS_SLOW_DOS			)	},
-								{"900030",	make_tuple(&stmt_insert_crs_scanner_integration,	&CRS_SCANNER_INTEGRATION	)	},
-								{"900031",	make_tuple(&stmt_insert_crs_scanner_integration,	&CRS_SCANNER_INTEGRATION	)	},
-								{"920021",	make_tuple(&stmt_insert_crs_cc_track_pan,		&CRS_CC_TRACK_PAN		)	},
-								{"920022",	make_tuple(&stmt_insert_crs_cc_track_pan,		&CRS_CC_TRACK_PAN		)	},
-								{"920023",	make_tuple(&stmt_insert_crs_cc_track_pan,		&CRS_CC_TRACK_PAN		)	},
-								{"981082",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981083",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981084",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981085",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981086",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981087",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981088",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981089",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981090",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981091",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981092",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981093",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981094",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981095",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981096",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981097",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981103",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981104",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981110",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981105",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981098",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981099",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981100",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981101",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981102",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981131",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"981132",	make_tuple(&stmt_insert_crs_appsensor,			&CRS_APPSENSOR			)	},
-								{"900032",	make_tuple(&stmt_insert_crs_http_parameter_pollution,	&CRS_HTTP_PARAMETER_POLLUTION	)	},
-								{"981142",	make_tuple(&stmt_insert_crs_csp_enforcement,		&CRS_CSP_ENFORCEMENT		)	},
-								{"960001",	make_tuple(&stmt_insert_crs_csp_enforcement,		&CRS_CSP_ENFORCEMENT		)	},
-								{"960002",	make_tuple(&stmt_insert_crs_csp_enforcement,		&CRS_CSP_ENFORCEMENT		)	},
-								{"960003",	make_tuple(&stmt_insert_crs_csp_enforcement,		&CRS_CSP_ENFORCEMENT		)	},
-								{"999003",	make_tuple(&stmt_insert_crs_scanner_integration,	&CRS_SCANNER_INTEGRATION	)	},
-								{"999004",	make_tuple(&stmt_insert_crs_scanner_integration,	&CRS_SCANNER_INTEGRATION	)	},
-								{"900033",	make_tuple(&stmt_insert_crs_bayes_analysis,		&CRS_BAYES_ANALYSIS		)	},
-								{"900034",	make_tuple(&stmt_insert_crs_bayes_analysis,		&CRS_BAYES_ANALYSIS		)	},
-								{"900035",	make_tuple(&stmt_insert_crs_bayes_analysis,		&CRS_BAYES_ANALYSIS		)	},
-								{"981187",	make_tuple(&stmt_insert_crs_response_profiling,		&CRS_RESPONSE_PROFILING		)	},
-								{"981189",	make_tuple(&stmt_insert_crs_response_profiling,		&CRS_RESPONSE_PROFILING		)	},
-								{"981190",	make_tuple(&stmt_insert_crs_response_profiling,		&CRS_RESPONSE_PROFILING		)	},
-								{"981191",	make_tuple(&stmt_insert_crs_response_profiling,		&CRS_RESPONSE_PROFILING		)	},
-								{"981192",	make_tuple(&stmt_insert_crs_response_profiling,		&CRS_RESPONSE_PROFILING		)	},
-								{"981193",	make_tuple(&stmt_insert_crs_response_profiling,		&CRS_RESPONSE_PROFILING		)	},
-								{"981194",	make_tuple(&stmt_insert_crs_response_profiling,		&CRS_RESPONSE_PROFILING		)	},
-								{"981195",	make_tuple(&stmt_insert_crs_response_profiling,		&CRS_RESPONSE_PROFILING		)	},
-								{"981196",	make_tuple(&stmt_insert_crs_response_profiling,		&CRS_RESPONSE_PROFILING		)	},
-								{"981197",	make_tuple(&stmt_insert_crs_response_profiling,		&CRS_RESPONSE_PROFILING		)	},
-								{"981198",	make_tuple(&stmt_insert_crs_pvi_checks,			&CRS_PVI_CHECKS			)	},
-								{"981199",	make_tuple(&stmt_insert_crs_pvi_checks,			&CRS_PVI_CHECKS			)	},
-								{"900036",	make_tuple(&stmt_insert_crs_ip_forensics,		&CRS_IP_FORENSICS		)	},
-								{"900037",	make_tuple(&stmt_insert_crs_ip_forensics,		&CRS_IP_FORENSICS		)	},
-								{"900039",	make_tuple(&stmt_insert_crs_ip_forensics,		&CRS_IP_FORENSICS		)	},
-								{"900040",	make_tuple(&stmt_insert_crs_ignore_static,		&CRS_IGNORE_STATIC		)	},
-								{"900041",	make_tuple(&stmt_insert_crs_ignore_static,		&CRS_IGNORE_STATIC		)	},
-								{"900042",	make_tuple(&stmt_insert_crs_ignore_static,		&CRS_IGNORE_STATIC		)	},
-								{"900043",	make_tuple(&stmt_insert_crs_ignore_static,		&CRS_IGNORE_STATIC		)	},
-								{"999005",	make_tuple(&stmt_insert_crs_ignore_static,		&CRS_IGNORE_STATIC		)	},
-								{"999006",	make_tuple(&stmt_insert_crs_ignore_static,		&CRS_IGNORE_STATIC		)	},
-								{"981033",	make_tuple(&stmt_insert_crs_av_scanning,		&CRS_AV_SCANNING		)	},
-								{"981034",	make_tuple(&stmt_insert_crs_av_scanning,		&CRS_AV_SCANNING		)	},
-								{"981035",	make_tuple(&stmt_insert_crs_av_scanning,		&CRS_AV_SCANNING		)	},
-								{"981053",	make_tuple(&stmt_insert_crs_xml_enabler,		&CRS_XML_ENABLER		)	},
-								{"981054",	make_tuple(&stmt_insert_crs_session_hijacking,		&CRS_SESSION_HIJACKING		)	},
-								{"981055",	make_tuple(&stmt_insert_crs_session_hijacking,		&CRS_SESSION_HIJACKING		)	},
-								{"981056",	make_tuple(&stmt_insert_crs_session_hijacking,		&CRS_SESSION_HIJACKING		)	},
-								{"981057",	make_tuple(&stmt_insert_crs_session_hijacking,		&CRS_SESSION_HIJACKING		)	},
-								{"981058",	make_tuple(&stmt_insert_crs_session_hijacking,		&CRS_SESSION_HIJACKING		)	},
-								{"981059",	make_tuple(&stmt_insert_crs_session_hijacking,		&CRS_SESSION_HIJACKING		)	},
-								{"981060",	make_tuple(&stmt_insert_crs_session_hijacking,		&CRS_SESSION_HIJACKING		)	},
-								{"981061",	make_tuple(&stmt_insert_crs_session_hijacking,		&CRS_SESSION_HIJACKING		)	},
-								{"981062",	make_tuple(&stmt_insert_crs_session_hijacking,		&CRS_SESSION_HIJACKING		)	},
-								{"981063",	make_tuple(&stmt_insert_crs_session_hijacking,		&CRS_SESSION_HIJACKING		)	},
-								{"981064",	make_tuple(&stmt_insert_crs_session_hijacking,		&CRS_SESSION_HIJACKING		)	},
-								{"981075",	make_tuple(&stmt_insert_crs_username_tracking,		&CRS_USERNAME_TRACKING		)	},
-								{"981076",	make_tuple(&stmt_insert_crs_username_tracking,		&CRS_USERNAME_TRACKING		)	},
-								{"981077",	make_tuple(&stmt_insert_crs_username_tracking,		&CRS_USERNAME_TRACKING		)	},
-								{"981078",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"981079",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920005",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920007",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920009",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920011",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920013",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920015",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920017",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"981080",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920020",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920006",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920008",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920010",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920012",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920014",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920016",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"920018",	make_tuple(&stmt_insert_crs_cc_known,			&CRS_CC_KNOWN			)	},
-								{"981137",	make_tuple(&stmt_insert_crs_comment_spam,		&CRS_COMMENT_SPAM		)	},
-								{"981138",	make_tuple(&stmt_insert_crs_comment_spam,		&CRS_COMMENT_SPAM		)	},
-								{"981139",	make_tuple(&stmt_insert_crs_comment_spam,		&CRS_COMMENT_SPAM		)	},
-								{"981140",	make_tuple(&stmt_insert_crs_comment_spam,		&CRS_COMMENT_SPAM		)	},
-								{"958297",	make_tuple(&stmt_insert_crs_comment_spam,		&CRS_COMMENT_SPAM		)	},
-								{"999010",	make_tuple(&stmt_insert_crs_comment_spam,		&CRS_COMMENT_SPAM		)	},
-								{"999011",	make_tuple(&stmt_insert_crs_comment_spam,		&CRS_COMMENT_SPAM		)	},
-								{"950923",	make_tuple(&stmt_insert_crs_comment_spam,		&CRS_COMMENT_SPAM		)	},
-								{"950020",	make_tuple(&stmt_insert_crs_comment_spam,		&CRS_COMMENT_SPAM		)	},
-								{"981143",	make_tuple(&stmt_insert_crs_csrf_protection,		&CRS_CSRF_PROTECTION		)	},
-								{"981144",	make_tuple(&stmt_insert_crs_csrf_protection,		&CRS_CSRF_PROTECTION		)	},
-								{"981145",	make_tuple(&stmt_insert_crs_csrf_protection,		&CRS_CSRF_PROTECTION		)	},
-								{"950115",	make_tuple(&stmt_insert_crs_av_scanning,		&CRS_AV_SCANNING		)	},
-								{"999008",	make_tuple(&stmt_insert_crs_skip_outbound_checks,	&CRS_SKIP_OUTBOUND_CHECKS	)	},
-								{"900044",	make_tuple(&stmt_insert_crs_header_tagging,		&CRS_HEADER_TAGGING		)	},
-								{"900045",	make_tuple(&stmt_insert_crs_header_tagging,		&CRS_HEADER_TAGGING		)	},
-								{"981219",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981220",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981221",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981222",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981223",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981224",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981238",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981235",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981184",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981236",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981185",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981239",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"900046",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981400",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981401",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981402",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981403",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981404",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981405",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981406",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981407",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"900048",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981180",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981181",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"981182",	make_tuple(&stmt_insert_crs_application_defects,	&CRS_APPLICATION_DEFECTS	)	},
-								{"910008",	make_tuple(&stmt_insert_crs_marketing,			&CRS_MARKETING			)	},
-								{"910007",	make_tuple(&stmt_insert_crs_marketing,			&CRS_MARKETING			)	},
-								{"910006",	make_tuple(&stmt_insert_crs_marketing,			&CRS_MARKETING			)	} };
-
-     
   
   
   if (prepared_statement_errors != 0) {
@@ -1296,7 +901,6 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
 	    A = headerdata;
 	    // submatch the apache UNIQUE_ID from the A header
 	    if (boost::regex_match(A.c_str(), match, A_regex)) {
-	      // WALRUS
               TIMESTAMP = match[1]; // something like 14/Jun/2015:09:32:25 +0100
               // need to convert this timestamp to a sqlite timestamp YYYY-MM-DD HH:MM:SS[+-]HH:MM
               // try this http://www.thejach.com/view/2012/7/apaches_common_log_format_datetime_converted_to_unix_timestamp_with_c
@@ -1781,26 +1385,37 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
                 // multiply the count number by the weighting to get the score for that rule and add increase the integer for the relevant table
                 // look up weighting in the rulesdata map
                 int weighting;
+                int rulescore;
+                int currentscore;
+                string rulefilename;
                 string ruleno = id.first;
+                
                 auto pos = ruledatamap.find(ruleno);
+                
                 if (pos == ruledatamap.end()) { 
                     cerr << "rule " << ruleno << " was not found in the map" << endl;
                 } else {
-                    weighting = (pos->second).second; // second part of value pair in rulesdata map (weighting)
+                    
+                    if (debug) {cout << "rule " << ruleno << " was found in the map, looking up weighting" << endl;}
+                    weighting = (pos->second).anomaly_score; // value is ruledata structure. Set weighting equal to anomaly score
+                    if (debug) {cout << "weighting is " << weighting << endl;}
+                    
+                    // calculate the score
+                    rulescore = id.second * weighting; // number of matches multiplied by weighting
+                    
+                    // fetch the relevant rulefile name (string) for this rule
+                    rulefilename = (pos->second).table_name;
+                    if (debug) {cout << "Rule filename is " << rulefilename << endl;}
+                    
+                    // look up the counter associated with this string
+                    currentscore = rulefiletocountermap[rulefilename];
+                    if (debug) {cout << "Counter for this rulefile is currently " << currentscore << endl;}
+                    
+                    // set new score
+                    rulefiletocountermap[rulefilename] = currentscore + rulescore;
+                    
                 }
-                // calculate the score
-                int rulescore = id.second * weighting; // number of matches multiplied by weighting
-                
-                // fetch the relevant rulefile name (string) for this rule
-                string rulefilename = (ruledatamap.find(ruleno)->second).first;
-                if (debug) {cout << "Rule filename is " << rulefilename << endl;}
-                
-                // look up the counter associated with this string
-                int currentscore = rulefiletocountermap[rulefilename];
-                if (debug) {cout << "Counter for this rulefile is currently " << currentscore << endl;}
-                
-                // set new score
-                rulefiletocountermap[rulefilename] = currentscore + rulescore;
+
             }
             
             
@@ -1817,7 +1432,7 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
                 int score = rf.second;
                 totalscore = totalscore + score;
                 
-                int rc_bind = sqlite3_bind_int(stmt_insert_scores, sqlite3_bind_parameter_index(stmt_insert_scores, colonrulefile.c_str()), score);
+                int rc_bind = sqlite3_bind_int(stmt_insert_anomaly_scores, sqlite3_bind_parameter_index(stmt_insert_anomaly_scores, colonrulefile.c_str()), score);
                 
                 if (rc_bind != SQLITE_OK) {
 		  cerr << UNIQUE_ID << ": error binding score for " << rulefile << " . Code " << rc_bind << " description: " << sqlite3_errmsg(db) << endl;
@@ -1827,7 +1442,7 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
 		
             }
             
-            int rc_totalbind = sqlite3_bind_int(stmt_insert_scores, sqlite3_bind_parameter_index(stmt_insert_scores, ":total_score"), totalscore);
+            int rc_totalbind = sqlite3_bind_int(stmt_insert_anomaly_scores, sqlite3_bind_parameter_index(stmt_insert_anomaly_scores, ":total_score"), totalscore);
                 
             if (rc_totalbind != SQLITE_OK) {
                 cerr << UNIQUE_ID << ": error binding total score. Code " << rc_totalbind << " description: " << sqlite3_errmsg(db) << endl;
@@ -1845,40 +1460,45 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
             }
             totalscore = 0;
             
-	    
-	    
             
+            // need to iterate through user supplied data of rule IDs, look up tablename for each rule ID,
+            // then use the tablename to look up the prepared statement in the tableNameToPreparedStatementMap
             // bind the number of matches for each rule to the relevant statement
-            for (const auto &pos : ruleIDmap) {
+            for (const auto &pos : ruledatamap) {
                 
                 // get ID string
-                string IDstring = pos.first;
+                string IDstring = pos.second.rule_id;
+                string tablename = pos.second.table_name;
                 
-                sqlite3_stmt *statement = *get<0>((ruleIDmap.find(IDstring))->second);
+                sqlite3_stmt *statement;
                 
-                string colonnumber = ":" + IDstring;
-                
-                int rc_bind;
-                int num_matches;
-                
-                auto pos2 = ruleIDCountMap.find(IDstring);
-                if (pos2 == ruleIDCountMap.end()) { // if id does not exist as a key in the counter map, then there were no matches
-                    num_matches = 0;
+                auto pos2 = tableNameToPreparedStatementMap.find(tablename);
+                if (pos2 == tableNameToPreparedStatementMap.end()) {
+                    if (debug) {cerr << "table name " << tablename << " was not found in the map" << endl;}
                 } else {
-                    num_matches = pos2->second;
+                    sqlite3_stmt *statement = *pos2->second;
+                    
+                    string colonnumber = ":" + IDstring;
+                    
+                    int rc_bind;
+                    int num_matches;
+                    
+                    auto pos3 = ruleIDCountMap.find(IDstring);
+                    if (pos3 == ruleIDCountMap.end()) { // if id does not exist as a key in the counter map, then there were no matches
+                        num_matches = 0;
+                    } else {
+                        num_matches = pos3->second;
+                    }
+                    rc_bind = sqlite3_bind_int(statement, sqlite3_bind_parameter_index(statement, colonnumber.c_str()), num_matches);
+                    
+                    if (rc_bind != SQLITE_OK) {
+                    cerr << UNIQUE_ID << ": error binding values for " << IDstring << " . Code " << rc_bind << " description: " << sqlite3_errmsg(db) << endl;
+                    } else {
+                    if (debug) {cout << UNIQUE_ID << ": values for " << IDstring << " bound successfully" << endl;}
+                    }
                 }
-                rc_bind = sqlite3_bind_int(statement, sqlite3_bind_parameter_index(statement, colonnumber.c_str()), num_matches);
-                
-                if (rc_bind != SQLITE_OK) {
-		  cerr << UNIQUE_ID << ": error binding values for " << IDstring << " . Code " << rc_bind << " description: " << sqlite3_errmsg(db) << endl;
-		} else {
-		  if (debug) {cout << UNIQUE_ID << ": values for " << IDstring << " bound successfully" << endl;}
-		}
+		
             }
-            
-	    
-	    
-	    
 	    
 	    
 	    
@@ -1919,21 +1539,20 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
 	    	    
 	    // reset all of the prepared statements ready to be re-executed
 	    for (const auto &s : prepared_statements_map) {
-	      rc = sqlite3_reset(*get<1>(s.second));
-	      if( rc != SQLITE_OK ){
-		cerr << "SQL error resetting " << s.first << " prepared statement" << endl;
-		cerr << "The error was: "<< sqlite3_errmsg(db) << endl;
-	      } else {
-		if (debug) {cout << "Prepared statement " << s.first << " was reset successfully" << endl;}
-	      }
+	      int reset_rc = sqlite3_reset(*get<1>(s.second));
+              
+              // sqlite3_clear_bindings returns SQLITE_OK if the last call to sqlite3_step was SQLITE_ROW or SQLITE_DONE, or
+              // the error message for the last step if not, there's no point in printing errors now (since they would be a duplicate
+              // of what was printed it at the step stage)
+              
 	    }
 	    
 	    // clear bindings for each prepared statement
 	    for (const auto &s : prepared_statements_map) {
-	      rc = sqlite3_clear_bindings(*get<1>(s.second));
-	      if( rc != SQLITE_OK ){
-		cerr << "SQL error clearing the bindings for " << s.first << "prepared statement" << endl;
-		cerr << "The error was: "<< sqlite3_errmsg(db) << endl;
+	      int clear_bindings_rc = sqlite3_clear_bindings(*get<1>(s.second));
+              if( clear_bindings_rc != SQLITE_OK ){
+		cerr << UNIQUE_ID << ": SQL error clearing the bindings for " << s.first << "prepared statement: " << sqlite3_errmsg(db) << endl;
+		//cerr << "The error was: "<< sqlite3_errmsg(db) << endl;
 	      } else {
 		if (debug) {cout << "Bindings for " << s.first << " were cleared successfully" << endl;}
 	      }
