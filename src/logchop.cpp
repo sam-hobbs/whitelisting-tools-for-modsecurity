@@ -283,488 +283,391 @@ map <string, rule_data> generateruledatamap (string ruledatafile, int debug) {
 // 8. move on to next row in results vector              
 
 int logchop(string database, string logfile, string rulesdatafile, vector<pair<int,string>> results, int debug, int force) {
-  // set a timer
-  std::chrono::time_point<std::chrono::system_clock> start, end;
-  start = std::chrono::system_clock::now();
-  
-  // record counter
-  int recordCounter = 0;
-  
-  
-  // 1. get size of the vector holding the header strings and line numbers
-  // always two columns because each element in the vector is a pair
-  int rows = results.size(); 
-  
-
-  // open database
-  sqlite3 *db;
-  int rc = sqlite3_open(database.c_str(), &db);
-  if(rc) {
-    cerr << "Can't open database" << endl;
-  } else {
-    if (debug) {cout << "Opened database successfully" << endl;}
-  } 
-
-  char *zErrMsg = 0;
-  
-  
-  
-  // 2. perform queries on the database to get information about data already present, so that we can use the same IDs for matches in this log file
-  
-  // A
-  // - timestamp
-  std::unordered_map<string, int> source_ip_map = get_unordered_map(database,"SELECT source_ip_id, source_ip FROM source_ip;",debug);
-  std::unordered_map<string, int> source_port_map = get_unordered_map(database,"SELECT source_port_id, source_port FROM source_port;",debug);
-  std::unordered_map<string, int> destination_ip_map = get_unordered_map(database,"SELECT destination_ip_id, destination_ip FROM destination_ip;",debug);
-  std::unordered_map<string, int> destination_port_map = get_unordered_map(database,"SELECT destination_port_id, destination_port FROM destination_port;",debug);
-  
-  // B
-  std::unordered_map<string, int> request_method_map = get_unordered_map(database,"SELECT request_method_id, request_method FROM request_method;",debug);
-  std::unordered_map<string, int> uri_map = get_unordered_map(database,"SELECT uri_id, uri FROM uri;",debug);
-  std::unordered_map<string, int> http_version_b_map = get_unordered_map(database,"SELECT http_version_b_id, http_version_b FROM http_version_b;",debug);
-  std::unordered_map<string, int> hosts_map = get_unordered_map(database,"SELECT host_id, host FROM hosts;",debug);
-  std::unordered_map<string, int> connection_b_map = get_unordered_map(database,"SELECT connection_b_id, connection_b FROM connection_b;",debug);
-  std::unordered_map<string, int> accept_map = get_unordered_map(database,"SELECT accept_id, accept FROM accept;",debug);
-  std::unordered_map<string, int> user_agent_map = get_unordered_map(database,"SELECT user_agent_id, user_agent FROM user_agent;",debug);
-  std::unordered_map<string, int> dnt_map = get_unordered_map(database,"SELECT dnt_id, dnt FROM dnt;",debug);
-  std::unordered_map<string, int> referrer_map = get_unordered_map(database,"SELECT referrer_id, referrer FROM referrer;",debug);
-  std::unordered_map<string, int> accept_encoding_map = get_unordered_map(database,"SELECT accept_encoding_id, accept_encoding FROM accept_encoding;",debug);
-  std::unordered_map<string, int> accept_language_map = get_unordered_map(database,"SELECT accept_language_id, accept_language FROM accept_language;",debug);
-  std::unordered_map<string, int> cookie_map = get_unordered_map(database,"SELECT cookie_id, cookie FROM cookie;",debug);
-  std::unordered_map<string, int> x_requested_with_map = get_unordered_map(database,"SELECT x_requested_with_id, x_requested_with FROM x_requested_with;",debug);
-  std::unordered_map<string, int> content_type_b_map = get_unordered_map(database,"SELECT content_type_b_id, content_type_b FROM content_type_b;",debug);
-  std::unordered_map<string, int> content_length_b_map = get_unordered_map(database,"SELECT content_length_b_id, content_length_b FROM content_length_b;",debug);
-  std::unordered_map<string, int> proxy_connection_map = get_unordered_map(database,"SELECT proxy_connection_id, proxy_connection FROM proxy_connection;",debug);
-  std::unordered_map<string, int> accept_charset_map = get_unordered_map(database,"SELECT accept_charset_id, accept_charset FROM accept_charset;",debug);
-  std::unordered_map<string, int> ua_cpu_map = get_unordered_map(database,"SELECT ua_cpu_id, ua_cpu FROM ua_cpu;",debug);
-  std::unordered_map<string, int> x_forwarded_for_map = get_unordered_map(database,"SELECT x_forwarded_for_id, x_forwarded_for FROM x_forwarded_for;",debug);
-  std::unordered_map<string, int> cache_control_b_map = get_unordered_map(database,"SELECT cache_control_b_id, cache_control_b FROM cache_control_b;",debug);
-  std::unordered_map<string, int> via_map = get_unordered_map(database,"SELECT via_id, via FROM via;",debug);
-  std::unordered_map<string, int> if_modified_since_map = get_unordered_map(database,"SELECT if_modified_since_id, if_modified_since FROM if_modified_since;",debug);
-  std::unordered_map<string, int> if_none_match_map = get_unordered_map(database,"SELECT if_none_match_id, if_none_match FROM if_none_match;",debug);
-  std::unordered_map<string, int> pragma_b_map = get_unordered_map(database,"SELECT pragma_b_id, pragma_b FROM pragma_b;",debug);
-  
-  // F
-  std::unordered_map<string, int> http_version_f_map = get_unordered_map(database,"SELECT http_version_f_id, http_version_f FROM http_version_f;",debug);
-  std::unordered_map<string, int> http_status_code_map = get_unordered_map(database,"SELECT http_status_code_id, http_status_code FROM http_status_code;",debug);
-  std::unordered_map<string, int> http_status_text_map = get_unordered_map(database,"SELECT http_status_text_id, http_status_text FROM http_status_text;",debug);
-  std::unordered_map<string, int> x_powered_by_map = get_unordered_map(database,"SELECT x_powered_by_id, x_powered_by FROM x_powered_by;",debug);
-  std::unordered_map<string, int> expires_map = get_unordered_map(database,"SELECT expires_id, expires FROM expires;",debug);
-  std::unordered_map<string, int> cache_control_f_map = get_unordered_map(database,"SELECT cache_control_f_id, cache_control_f FROM cache_control_f;",debug);
-  std::unordered_map<string, int> pragma_f_map = get_unordered_map(database,"SELECT pragma_f_id, pragma_f FROM pragma_f;",debug);
-  std::unordered_map<string, int> vary_map = get_unordered_map(database,"SELECT vary_id, vary FROM vary;",debug);
-  std::unordered_map<string, int> content_encoding_map = get_unordered_map(database,"SELECT content_encoding_id, content_encoding FROM content_encoding;",debug);
-  std::unordered_map<string, int> content_length_f_map = get_unordered_map(database,"SELECT content_length_f_id, content_length_f FROM content_length_f;",debug);
-  std::unordered_map<string, int> connection_f_map = get_unordered_map(database,"SELECT connection_f_id, connection_f FROM connection_f;",debug);
-  std::unordered_map<string, int> content_type_f_map = get_unordered_map(database,"SELECT content_type_f_id, content_type_f FROM content_type_f;",debug);
-  std::unordered_map<string, int> status_map = get_unordered_map(database,"SELECT status_id, status FROM status;",debug);
-  std::unordered_map<string, int> keep_alive_map = get_unordered_map(database,"SELECT keep_alive_id, keep_alive FROM keep_alive;",debug);
-  
-  // H
-  std::unordered_map<string, int> messages_map = get_unordered_map(database,"SELECT messages_id, messages FROM messages;",debug);
-  std::unordered_map<string, int> apache_handler_map = get_unordered_map(database,"SELECT apache_handler_id, apache_handler FROM apache_handler;",debug);
-  // - stopwatch
-  // - stopwatch2
-  std::unordered_map<string, int> producer_map = get_unordered_map(database,"SELECT producer_id, producer FROM producer;",debug);
-  std::unordered_map<string, int> server_map = get_unordered_map(database,"SELECT server_id, server FROM server;",debug);
-  std::unordered_map<string, int> engine_mode_map = get_unordered_map(database,"SELECT engine_mode_id, engine_mode FROM engine_mode;",debug);
-  std::unordered_map<string, int> action_map = get_unordered_map(database,"SELECT action_id, action FROM action;",debug);
-  std::unordered_map<string, int> apache_error_map = get_unordered_map(database,"SELECT apache_error_id, apache_error FROM apache_error;",debug);
-  std::unordered_map<string, int> xml_parser_error_map = get_unordered_map(database,"SELECT xml_parser_error_id, xml_parser_error FROM xml_parser_error;",debug);
-  
-  
-  
-  cout << "Generating rule data map from the rulesdata file " << rulesdatafile; 
-  map <string, rule_data> ruledatamap = generateruledatamap (rulesdatafile, debug);
-  cout << " ...done" << endl;
-  
-  
-  // generate a map from the rule filename string to a counter
-  
-  map <string, int> rulefiletocountermap;
-  
-  for (const auto &iterator : ruledatamap) {
-      // add the current rule file string to the set 
-      int foo;
-      string ruledatafile = (iterator.second).table_name;
-      rulefiletocountermap.insert ({ruledatafile, foo});
-  }
-  
-  // print the map
-  
-  if (debug) {
-      for (const auto &iterator : rulefiletocountermap) {
-          cout << "Rule file " << iterator.first << " maps to integer " << iterator.second << endl; 
-      }
-  }
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  // stuff for boost regex matching
-  boost::cmatch match; // cmatch type to hold matches
-  
-  // matches for section A, example data:
-  // [25/Feb/2014:14:00:43 +0000] UwyiC38AAQEAAEx4slsAAAAG 125.210.204.242 40996 192.168.1.103 80
-  boost::regex A_regex("^\\[(.*)\\]\\s(.{24})\\s(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s(\\d+)\\s(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s(\\d+).*"); // 1st match is TIMESTAMP, 2nd match is APACHE_UID, 3rd match is SOURCE_IP, 4th match is SOURCE_PORT, 5th match is DESTINATION_IP, 6th match is DESTINATION_PORT
-  
-  
-
-  
-  
-  // matches for section B (request headers)
-  boost::regex B_regex("^(\\w+)\\s(.*)\\s(HTTP\\/\\d\\.\\d).*"); // 1st match is request method, 2nd match is URI, 3rd match is HTTP version
-  boost::regex B_regex_host("^Host:(.*?)$");
-  boost::regex B_regex_connection("^Connection:(.*?)$");
-  boost::regex B_regex_accept("^Accept:(.*?)$");
-  boost::regex B_regex_useragent("^User-Agent:(.*?)$"); // match for user agent string for use with regex_search
-  boost::regex B_regex_DNT("^DNT:(.*?)$");
-  boost::regex B_regex_referrer("^Referrer:(.*?)$");
-  boost::regex B_regex_accept_encoding("^Accept-Encoding:(.*?)$");
-  boost::regex B_regex_accept_language("^Accept-Language:(.*?)$");
-  boost::regex B_regex_cookie("^Cookie:(.*?)$");
-  boost::regex B_regex_x_requested_with("^X-Requested-With:(.*?)$");
-  boost::regex B_regex_content_type("^Content-Type:(.*?)$");
-  boost::regex B_regex_content_length("^Content-Length:(.*?)$");
-  boost::regex B_regex_proxy_connection("^Proxy-Connection:(.*?)$");
-  boost::regex B_regex_accept_charset("^Accept-Charset:(.*?)$");
-  boost::regex B_regex_UA_CPU("^UA-CPU:(.*?)$");
-  boost::regex B_regex_x_forwarded_for("^X-Forwarded-For:(.*?)$");
-  boost::regex B_regex_cache_control("^Cache-Control:(.*?)$");
-  boost::regex B_regex_via("^Via:(.*?)$");
-  boost::regex B_regex_if_modified_since("^If-Modified-Since:(.*?)$");
-  boost::regex B_regex_if_none_match("^If-None-Match:(.*?)$");
-  boost::regex B_regex_pragma("^Pragma:(.*?)$");
-  
-  
-  // matches for section C (request body)
-  // (none)
-  
-  // section D not implemented by modsecurity
-  // (none)
-  
-  // matches for section E (intermediary response body)
-  // (none)
-  
-  // matches for section F (final response headers)
-  boost::regex F_regex("^(HTTP\\/\\d\\.\\d)\\s(\\d+)\\s(.*?)$"); // 1st match is HTTP version, 2nd match is HTTP code, 3rd match is HTTP code description
-  boost::regex F_regex_x_powered_by("^X-Powered-By:(.*?)$");
-  boost::regex F_regex_expires("^Expires:(.*?)$");
-  boost::regex F_regex_cache_control("^Cache-Control:(.*?)$");
-  boost::regex F_regex_pragma("^Pragma:(.*?)$");
-  boost::regex F_regex_vary("^Vary:(.*?)$");
-  boost::regex F_regex_content_encoding("^Content-Encoding:(.*?)$");
-  boost::regex F_regex_content_length("^Content-Length:(.*?)$");
-  boost::regex F_regex_connection("^Connection:(.*?)$");
-  boost::regex F_regex_content_type("^Content-Type:(.*?)$");
-  boost::regex F_regex_status("^Status:(.*?)$");
-  boost::regex F_regex_keep_alive("^Keep-Alive:(.*?)$");
-  
-  // section G not implemented by modsecurity
-  // (none)
-  
-  // matches for section H (audit log trailer)
-  boost::regex H_regex_messages("^Message:(.*?)$");
-  boost::regex H_regex_apache_handler("^Apache-Handler:(.*?)$");
-  boost::regex H_regex_apache_error("^Apache-Error:(.*?)$");
-  boost::regex H_regex_stopwatch("^Stopwatch:(.*?)$");
-  boost::regex H_regex_stopwatch2("^Stopwatch2:(.*?)$");
-  //boost::regex H_regex_response_body_transformed("^Apache-Handler:(.*?)$");
-  boost::regex H_regex_producer("^Producer:(.*?)$");
-  boost::regex H_regex_server("^Server:(.*?)$");
-  boost::regex H_regex_engine_mode("^Engine-Mode:\\s\"(.*?)\"$");
-  boost::regex H_regex_action("^Action:(.*?)$");
-  boost::regex H_regex_xml_parser_error("^Message: XML parser error:(.*?)$");
-  
-  // matches for any rule ID
-  boost::regex H_regex_any_rule("\\[id\\s\"(\\d{6})\"\\]");
-  
-  
-  // matches for section I (a replacement for part C)
-  // (none)
-  
-  // matches for section J (contains information about files uploaded using multipart/form-data encoding)
-  // (none)
-  
-  // matches for section K (list of every rule that matched, one per line, in the order they were matched)
-  // (none)
-  
-  // create the SQL statements that can be used to commit the values to the database
-  map <string, tuple<const char *, sqlite3_stmt **>> prepared_statements_map;
-  
-  
-  // NB: unbound values in prepared statements are NULL
-  const char *sql_insert_main = "INSERT INTO main (UNIQUE_ID, HEADER, A, B, C, D, E, F, G, H, I, J, K) VALUES (:UNIQUE_ID, :HEADER, :A, :B, :C, :D, :E, :F, :G, :H, :I, :J, :K);";
-  sqlite3_stmt *stmt_insert_main; // compiled statement handle (pointer of type sqlite3_stmt)
-  prepared_statements_map.insert({"sql_insert_main",	make_tuple(sql_insert_main, &stmt_insert_main)});
-  
-  const char *sql_insert_A = "INSERT INTO A (UNIQUE_ID, TIMESTAMP, UNIXTIME, SOURCE_IP_ID, SOURCE_PORT_ID, DESTINATION_IP_ID, DESTINATION_PORT_ID) VALUES (:UNIQUE_ID, :TIMESTAMP, :UNIXTIME, :SOURCE_IP_ID, :SOURCE_PORT_ID, :DESTINATION_IP_ID, :DESTINATION_PORT_ID);";
-  sqlite3_stmt *stmt_insert_A;
-  prepared_statements_map.insert({"sql_insert_A", make_tuple(sql_insert_A, &stmt_insert_A)});
-  
-  const char *sql_insert_B = "INSERT INTO B (UNIQUE_ID, REQUEST_METHOD_ID, URI_ID, HTTP_VERSION_ID, HOST_ID, CONNECTION_ID, ACCEPT_ID, USER_AGENT_ID, DNT_ID, REFERRER_ID, ACCEPT_ENCODING_ID, ACCEPT_LANGUAGE_ID, COOKIE_ID, X_REQUESTED_WITH_ID, CONTENT_TYPE_ID, CONTENT_LENGTH_ID, PROXY_CONNECTION_ID, ACCEPT_CHARSET_ID, UA_CPU_ID, X_FORWARDED_FOR_ID, CACHE_CONTROL_ID, VIA_ID, IF_MODIFIED_SINCE_ID, IF_NONE_MATCH_ID, PRAGMA_ID) VALUES (:UNIQUE_ID, :REQUEST_METHOD_ID, :REQUEST_URI_ID, :REQUEST_HTTP_VERSION_ID, :REQUEST_HOST_ID, :REQUEST_CONNECTION_ID, :REQUEST_ACCEPT_ID, :REQUEST_USER_AGENT_ID, :REQUEST_DNT_ID, :REQUEST_REFERRER_ID, :REQUEST_ACCEPT_ENCODING_ID, :REQUEST_ACCEPT_LANGUAGE_ID, :REQUEST_COOKIE_ID, :REQUEST_X_REQUESTED_WITH_ID, :REQUEST_CONTENT_TYPE_ID, :REQUEST_CONTENT_LENGTH_ID, :REQUEST_PROXY_CONNECTION_ID, :REQUEST_ACCEPT_CHARSET_ID, :REQUEST_UA_CPU_ID, :REQUEST_X_FORWARDED_FOR_ID, :REQUEST_CACHE_CONTROL_ID, :REQUEST_VIA_ID, :REQUEST_IF_MODIFIED_SINCE_ID, :REQUEST_IF_NONE_MATCH_ID, :REQUEST_PRAGMA_ID);";
-  sqlite3_stmt *stmt_insert_B;
-  prepared_statements_map.insert({"sql_insert_B", make_tuple(sql_insert_B, &stmt_insert_B)});
-  
-  const char *sql_insert_F = "INSERT INTO F (UNIQUE_ID, HTTP_VERSION_ID, HTTP_STATUS_CODE_ID, HTTP_STATUS_TEXT_ID, X_POWERED_BY_ID, EXPIRES_ID, CACHE_CONTROL_ID, PRAGMA_ID, VARY_ID, CONTENT_ENCODING_ID, CONTENT_LENGTH_ID, CONNECTION_ID, CONTENT_TYPE_ID, STATUS_ID, KEEP_ALIVE_ID) VALUES (:UNIQUE_ID, :RESPONSE_HTTP_VERSION_ID, :RESPONSE_HTTP_STATUS_CODE_ID, :RESPONSE_HTTP_STATUS_TEXT_ID, :RESPONSE_X_POWERED_BY_ID, :RESPONSE_EXPIRES_ID, :RESPONSE_CACHE_CONTROL_ID, :RESPONSE_PRAGMA_ID, :RESPONSE_VARY_ID, :RESPONSE_CONTENT_ENCODING_ID, :RESPONSE_CONTENT_LENGTH_ID, :RESPONSE_CONNECTION_ID, :RESPONSE_CONTENT_TYPE_ID, :RESPONSE_STATUS_ID, :RESPONSE_KEEP_ALIVE_ID);";
-  sqlite3_stmt *stmt_insert_F;
-  prepared_statements_map.insert({"sql_insert_F",make_tuple(sql_insert_F, &stmt_insert_F)});
-  
-  const char *sql_insert_H = "INSERT INTO H (UNIQUE_ID, MESSAGES_ID, APACHE_HANDLER_ID, APACHE_ERROR_ID, STOPWATCH, STOPWATCH2, PRODUCER_ID, SERVER_ID, ENGINE_MODE_ID, ACTION_ID, XML_PARSER_ERROR_ID) VALUES (:UNIQUE_ID, :TRAILER_MESSAGES_ID, :TRAILER_APACHE_HANDLER_ID, :TRAILER_APACHE_ERROR_ID, :TRAILER_STOPWATCH, :TRAILER_STOPWATCH2, :TRAILER_PRODUCER_ID, :TRAILER_SERVER_ID, :TRAILER_ENGINE_MODE_ID, :TRAILER_ACTION_ID, :TRAILER_XML_PARSER_ERROR_ID);";
-  sqlite3_stmt *stmt_insert_H;
-  prepared_statements_map.insert({"sql_insert_H",make_tuple(sql_insert_H, &stmt_insert_H)});
-
-  
-  // ************************* PROTOCOL VIOLATION **************************  
-  const char *sql_insert_crs_protocol_violation = "INSERT INTO CRS_20_PROTOCOL_VIOLATIONS (UNIQUE_ID, '960911', '981227', '960000', '960912', '960914', '960915','960016','960011','960012','960902','960022','960020','958291','958230','958231','958295','950107','950109','950108','950801','950116','960014','960901','960018') VALUES (:UNIQUE_ID, :960911, :981227, :960000, :960912, :960914, :960915,:960016,:960011,:960012,:960902,:960022,:960020,:958291,:958230,:958231,:958295,:950107,:950109,:950108,:950801,:950116,:960014,:960901,:960018);";
-  sqlite3_stmt *stmt_insert_crs_protocol_violation;
-  prepared_statements_map.insert({"sql_insert_crs_protocol_violation",make_tuple(sql_insert_crs_protocol_violation, &stmt_insert_crs_protocol_violation)});
-  
-  // ************************* PROTOCOL ANOMALY **************************
-  const char *sql_insert_crs_protocol_anomaly = "INSERT INTO CRS_21_PROTOCOL_ANOMALIES (UNIQUE_ID, '960008', '960007', '960015', '960021', '960009', '960006', '960904', '960017') VALUES (:UNIQUE_ID, :960008, :960007, :960015, :960021, :960009, :960006, :960904, :960017);";
-  sqlite3_stmt *stmt_insert_crs_protocol_anomaly;
-  prepared_statements_map.insert({"sql_insert_protocol_anomaly",make_tuple(sql_insert_crs_protocol_anomaly, &stmt_insert_crs_protocol_anomaly)});
-  
-  // ************************* REQUEST LIMIT **************************
-  const char *sql_insert_crs_request_limit = "INSERT INTO CRS_23_REQUEST_LIMITS (UNIQUE_ID, '960209', '960208', '960335', '960341', '960342', '960343') VALUES (:UNIQUE_ID, :960209, :960208, :960335, :960341, :960342, :960343);";
-  sqlite3_stmt *stmt_insert_crs_request_limit;
-  prepared_statements_map.insert({"sql_insert_crs_request_limit",make_tuple(sql_insert_crs_request_limit, &stmt_insert_crs_request_limit)});
-  
-  // ************************* HTTP POLICY **************************
-  const char *sql_insert_crs_http_policy = "INSERT INTO CRS_30_HTTP_POLICY (UNIQUE_ID, '960032', '960010', '960034', '960035', '960038') VALUES (:UNIQUE_ID, :960032, :960010, :960034, :960035, :960038);";
-  sqlite3_stmt *stmt_insert_crs_http_policy;
-  prepared_statements_map.insert({"sql_insert_crs_http_policy",make_tuple(sql_insert_crs_http_policy, &stmt_insert_crs_http_policy)});
-  
-  // ************************* BAD ROBOT **************************
-  const char *sql_insert_crs_bad_robot = "INSERT INTO CRS_35_BAD_ROBOTS (UNIQUE_ID, '990002', '990901', '990902', '990012') VALUES (:UNIQUE_ID, :990002, :990901, :990902, :990012);";
-  sqlite3_stmt *stmt_insert_crs_bad_robot;
-  prepared_statements_map.insert({"sql_insert_crs_bad_robot",make_tuple(sql_insert_crs_bad_robot, &stmt_insert_crs_bad_robot)});
-  
-  // ************************* GENERIC ATTACK **************************
-  const char *sql_insert_crs_generic_attack = "INSERT INTO CRS_40_GENERIC_ATTACKS (UNIQUE_ID, '950907', '960024', '950008', '950010', '950011', '950018', '950019', '950012', '950910', '950911', '950117', '950118', '950119', '950120', '981133', '950009', '950003', '950000', '950005', '950002', '950006', '959151', '958976', '958977') VALUES (:UNIQUE_ID, :950907, :960024, :950008, :950010, :950011, :950018, :950019, :950012, :950910, :950911, :950117, :950118, :950119, :950120, :981133, :950009, :950003, :950000, :950005, :950002, :950006, :959151, :958976, :958977);";
-  sqlite3_stmt *stmt_insert_crs_generic_attack;
-  prepared_statements_map.insert({"sql_insert_crs_generic_attack",make_tuple(sql_insert_crs_generic_attack, &stmt_insert_crs_generic_attack)});
-
-  // ************************* SQL INJECTION ATTACK **************************
-  const char *sql_insert_crs_sql_injection = "INSERT INTO CRS_41_SQL_INJECTION_ATTACKS (UNIQUE_ID, '981231', '981260', '981318', '981319', '950901', '981320', '981300', '981301', '981302', '981303', '981304', '981305', '981306', '981307', '981308', '981309', '981310', '981311', '981312', '981313', '981314', '981315', '981316', '981317', '950007', '950001', '959070', '959071', '959072', '950908', '959073', '981172', '981173', '981272', '981244', '981255', '981257', '981248', '981277', '981250', '981241', '981252', '981256', '981245', '981276', '981254', '981270', '981240', '981249', '981253', '981242', '981246', '981251', '981247', '981243') VALUES (:UNIQUE_ID, :981231, :981260, :981318, :981319, :950901, :981320, :981300, :981301, :981302, :981303, :981304, :981305, :981306, :981307, :981308, :981309, :981310, :981311, :981312, :981313, :981314, :981315, :981316, :981317, :950007, :950001, :959070, :959071, :959072, :950908, :959073, :981172, :981173, :981272, :981244, :981255, :981257, :981248, :981277, :981250, :981241, :981252, :981256, :981245, :981276, :981254, :981270, :981240, :981249, :981253, :981242, :981246, :981251, :981247, :981243);";
-  sqlite3_stmt *stmt_insert_crs_sql_injection;
-  prepared_statements_map.insert({"sql_insert_crs_sql_injection",make_tuple(sql_insert_crs_sql_injection, &stmt_insert_crs_sql_injection)});
-  
-  // ************************* XSS ATTACK **************************
-  const char *sql_insert_crs_xss_attack = "INSERT INTO CRS_41_XSS_ATTACKS (UNIQUE_ID, '973336', '973337', '973338', '981136', '981018', '958016', '958414', '958032', '958026', '958027', '958054', '958418', '958034', '958019', '958013', '958408', '958012', '958423', '958002', '958017', '958007', '958047', '958410', '958415', '958022', '958405', '958419', '958028', '958057', '958031', '958006', '958033', '958038', '958409', '958001', '958005', '958404', '958023', '958010', '958411', '958422', '958036', '958000', '958018', '958406', '958040', '958052', '958037', '958049', '958030', '958041', '958416', '958024', '958059', '958417', '958020', '958045', '958004', '958421', '958009', '958025', '958413', '958051', '958420', '958407', '958056', '958011', '958412', '958008', '958046', '958039', '958003', '973300', '973301', '973302', '973303', '973304', '973305', '973306', '973307', '973308', '973309', '973310', '973311', '973312', '973313', '973314', '973331', '973315', '973330', '973327', '973326', '973346', '973345', '973324', '973323', '973322', '973348', '973321', '973320', '973318', '973317', '973347', '973335', '973334', '973333', '973344', '973332', '973329', '973328', '973316', '973325', '973319') VALUES (:UNIQUE_ID, :973336, :973337, :973338, :981136, :981018, :958016, :958414, :958032, :958026, :958027, :958054, :958418, :958034, :958019, :958013, :958408, :958012, :958423, :958002, :958017, :958007, :958047, :958410, :958415, :958022, :958405, :958419, :958028, :958057, :958031, :958006, :958033, :958038, :958409, :958001, :958005, :958404, :958023, :958010, :958411, :958422, :958036, :958000, :958018, :958406, :958040, :958052, :958037, :958049, :958030, :958041, :958416, :958024, :958059, :958417, :958020, :958045, :958004, :958421, :958009, :958025, :958413, :958051, :958420, :958407, :958056, :958011, :958412, :958008, :958046, :958039, :958003, :973300, :973301, :973302, :973303, :973304, :973305, :973306, :973307, :973308, :973309, :973310, :973311, :973312, :973313, :973314, :973331, :973315, :973330, :973327, :973326, :973346, :973345, :973324, :973323, :973322, :973348, :973321, :973320, :973318, :973317, :973347, :973335, :973334, :973333, :973344, :973332, :973329, :973328, :973316, :973325, :973319);";
-  sqlite3_stmt *stmt_insert_crs_xss_attack;
-  prepared_statements_map.insert({"sql_insert_crs_xss_attack",make_tuple(sql_insert_crs_xss_attack, &stmt_insert_crs_xss_attack)});
-
-  // ************************* TIGHT SECURITY **************************
-  const char *sql_insert_crs_tight_security = "INSERT INTO CRS_42_TIGHT_SECURITY (UNIQUE_ID, '950103') VALUES (:UNIQUE_ID, :950103);";
-  sqlite3_stmt *stmt_insert_crs_tight_security;
-  prepared_statements_map.insert({"sql_insert_crs_tight_security",make_tuple(sql_insert_crs_tight_security, &stmt_insert_crs_tight_security)});
-
-  // ************************* TROJANS **************************
-  const char *sql_insert_crs_trojans = "INSERT INTO CRS_45_TROJANS (UNIQUE_ID, '950110', '950921', '950922') VALUES (:UNIQUE_ID, :950110, :950921, :950922);";
-  sqlite3_stmt *stmt_insert_crs_trojans;
-  prepared_statements_map.insert({"sql_insert_crs_trojans",make_tuple(sql_insert_crs_trojans, &stmt_insert_crs_trojans)});
-
-  // ************************* COMMON EXCEPTIONS **************************
-  const char *sql_insert_crs_common_exceptions = "INSERT INTO CRS_47_COMMON_EXCEPTIONS (UNIQUE_ID, '981020', '981021', '981022') VALUES (:UNIQUE_ID, :981020, :981021, :981022);";
-  sqlite3_stmt *stmt_insert_crs_common_exceptions;
-  prepared_statements_map.insert({"sql_insert_crs_common_exceptions",make_tuple(sql_insert_crs_common_exceptions, &stmt_insert_crs_common_exceptions)});
-
-  // ************************* LOCAL EXCEPTIONS **************************
-  const char *sql_insert_crs_local_exceptions = "INSERT INTO CRS_48_LOCAL_EXCEPTIONS (UNIQUE_ID) VALUES (:UNIQUE_ID);";
-  sqlite3_stmt *stmt_insert_crs_local_exceptions;
-  prepared_statements_map.insert({"sql_insert_crs_local_exceptions",make_tuple(sql_insert_crs_local_exceptions, &stmt_insert_crs_local_exceptions)});
-
-  // ************************* INBOUND BLOCKING **************************
-  const char *sql_insert_crs_inbound_blocking = "INSERT INTO CRS_49_INBOUND_BLOCKING (UNIQUE_ID, '981175', '981176') VALUES (:UNIQUE_ID, :981175, :981176);";
-  sqlite3_stmt *stmt_insert_crs_inbound_blocking;
-  prepared_statements_map.insert({"sql_insert_crs_inbound_blocking",make_tuple(sql_insert_crs_inbound_blocking, &stmt_insert_crs_inbound_blocking)});
-
-  // ************************* OUTBOUND **************************
-  const char *sql_insert_crs_outbound = "INSERT INTO CRS_50_OUTBOUND (UNIQUE_ID, '970007', '970008', '970009', '970010', '970012', '970903', '970016', '970018', '970901', '970021', '970011', '981177', '981000', '981001', '981003', '981004', '981005', '981006', '981007', '981178', '970014', '970015', '970902', '970002', '970003', '970004', '970904', '970013') VALUES (:UNIQUE_ID, :970007, :970008, :970009, :970010, :970012, :970903, :970016, :970018, :970901, :970021, :970011, :981177, :981000, :981001, :981003, :981004, :981005, :981006, :981007, :981178, :970014, :970015, :970902, :970002, :970003, :970004, :970904, :970013);";
-  sqlite3_stmt *stmt_insert_crs_outbound;
-  prepared_statements_map.insert({"sql_insert_crs_outbound",make_tuple(sql_insert_crs_outbound, &stmt_insert_crs_outbound)});
-
-  // ************************* OUTBOUND BLOCKING **************************
-  const char *sql_insert_crs_outbound_blocking = "INSERT INTO CRS_59_OUTBOUND_BLOCKING (UNIQUE_ID, '981200') VALUES (:UNIQUE_ID, :981200);";
-  sqlite3_stmt *stmt_insert_crs_outbound_blocking;
-  prepared_statements_map.insert({"sql_insert_crs_outbound_blocking",make_tuple(sql_insert_crs_outbound_blocking, &stmt_insert_crs_outbound_blocking)});
-
-  // ************************* CORRELATION **************************
-  const char *sql_insert_crs_correlation = "INSERT INTO CRS_60_CORRELATION (UNIQUE_ID, '981201', '981202', '981203', '981204', '981205') VALUES (:UNIQUE_ID, :981201, :981202, :981203, :981204, :981205);";
-  sqlite3_stmt *stmt_insert_crs_correlation;
-  prepared_statements_map.insert({"sql_insert_crs_correlation",make_tuple(sql_insert_crs_correlation, &stmt_insert_crs_correlation)});
-
-  
+    // set a timer
+    std::chrono::time_point<std::chrono::system_clock> start, end;
+    start = std::chrono::system_clock::now();
     
-  // ************************* BRUTE FORCE **************************
-  const char *sql_insert_crs_brute_force = "INSERT INTO CRS_11_BRUTE_FORCE (UNIQUE_ID, '981036', '981037', '981038', '981039', '981040', '981041', '981042', '981043') VALUES (:UNIQUE_ID, :981036, :981037, :981038, :981039, :981040, :981041, :981042, :981043);";
-  sqlite3_stmt *stmt_insert_crs_brute_force;
-  prepared_statements_map.insert({"sql_insert_crs_brute_force",make_tuple(sql_insert_crs_brute_force, &stmt_insert_crs_brute_force)});
-
-  // ************************* DOS PROTECTION **************************
-  const char *sql_insert_crs_dos = "INSERT INTO CRS_11_DOS_PROTECTION (UNIQUE_ID, '981044', '981045', '981046', '981047', '981048', '981049') VALUES (:UNIQUE_ID, :981044, :981045, :981046, :981047, :981048, :981049);";
-  sqlite3_stmt *stmt_insert_crs_dos;
-  prepared_statements_map.insert({"sql_insert_crs_dos",make_tuple(sql_insert_crs_dos, &stmt_insert_crs_dos)});
-
-  // ************************* PROXY ABUSE **************************
-  const char *sql_insert_crs_proxy_abuse = "INSERT INTO CRS_11_PROXY_ABUSE (UNIQUE_ID, '981050') VALUES (:UNIQUE_ID, :981050);";
-  sqlite3_stmt *stmt_insert_crs_proxy_abuse;
-  prepared_statements_map.insert({"sql_insert_crs_proxy_abuse",make_tuple(sql_insert_crs_proxy_abuse, &stmt_insert_crs_proxy_abuse)});
-
-  // ************************* SLOW DOS PROTECTION **************************
-  const char *sql_insert_crs_slow_dos = "INSERT INTO CRS_11_SLOW_DOS_PROTECTION (UNIQUE_ID, '981051', '981052') VALUES (:UNIQUE_ID, :981051, :981052);";
-  sqlite3_stmt *stmt_insert_crs_slow_dos;
-  prepared_statements_map.insert({"sql_insert_crs_slow_dos",make_tuple(sql_insert_crs_slow_dos, &stmt_insert_crs_slow_dos)});
-
-  // ************************* CC TRACK PAN **************************
-  const char *sql_insert_crs_cc_track_pan = "INSERT INTO CRS_25_CC_TRACK_PAN (UNIQUE_ID, '920021', '920022', '920023') VALUES (:UNIQUE_ID, :920021, :920022, :920023);";
-  sqlite3_stmt *stmt_insert_crs_cc_track_pan;
-  prepared_statements_map.insert({"sql_insert_crs_cc_track_pan",make_tuple(sql_insert_crs_cc_track_pan, &stmt_insert_crs_cc_track_pan)});
-
-  // ************************* APPSENSOR DETECTION POINT **************************
-  const char *sql_insert_crs_appsensor = "INSERT INTO CRS_40_APPSENSOR_DETECTION_POINT (UNIQUE_ID, '981082', '981083', '981084', '981085', '981086', '981087', '981088', '981089', '981090', '981091', '981092', '981093', '981094', '981095', '981096', '981097', '981103', '981104', '981110', '981105', '981098', '981099', '981100', '981101', '981102', '981131', '981132') VALUES (:UNIQUE_ID, :981082, :981083, :981084, :981085, :981086, :981087, :981088, :981089, :981090, :981091, :981092, :981093, :981094, :981095, :981096, :981097, :981103, :981104, :981110, :981105, :981098, :981099, :981100, :981101, :981102, :981131, :981132);";
-  sqlite3_stmt *stmt_insert_crs_appsensor;
-  prepared_statements_map.insert({"sql_insert_crs_appsensor",make_tuple(sql_insert_crs_appsensor, &stmt_insert_crs_appsensor)});
-
-  // ************************* HTTP PARAMETER POLLUTION **************************
-  const char *sql_insert_crs_http_parameter_pollution = "INSERT INTO CRS_40_HTTP_PARAMETER_POLLUTION (UNIQUE_ID, '900032') VALUES (:UNIQUE_ID, :900032);";
-  sqlite3_stmt *stmt_insert_crs_http_parameter_pollution;
-  prepared_statements_map.insert({"sql_insert_crs_http_parameter_pollution",make_tuple(sql_insert_crs_http_parameter_pollution, &stmt_insert_crs_http_parameter_pollution)});
-
-  // ************************* CSP ENFORCEMENT **************************
-  const char *sql_insert_crs_csp_enforcement = "INSERT INTO CRS_42_CSP_ENFORCEMENT (UNIQUE_ID, '981142', '960001', '960002', '960003') VALUES (:UNIQUE_ID, :981142, :960001, :960002, :960003);";
-  sqlite3_stmt *stmt_insert_crs_csp_enforcement;
-  prepared_statements_map.insert({"sql_insert_crs_csp_enforcement",make_tuple(sql_insert_crs_csp_enforcement, &stmt_insert_crs_csp_enforcement)});
-
-  // ************************* SCANNER INTEGRATION **************************
-  const char *sql_insert_crs_scanner_integration = "INSERT INTO CRS_46_SCANNER_INTEGRATION (UNIQUE_ID, '900030', '900031', '999003', '999004') VALUES (:UNIQUE_ID, :900030, :900031, :999003, :999004);";
-  sqlite3_stmt *stmt_insert_crs_scanner_integration;
-  prepared_statements_map.insert({"sql_insert_crs_scanner_integration",make_tuple(sql_insert_crs_scanner_integration, &stmt_insert_crs_scanner_integration)});
-
-  // ************************* BAYES ANALYSIS **************************
-  const char *sql_insert_crs_bayes_analysis = "INSERT INTO CRS_48_BAYES_ANALYSIS (UNIQUE_ID, '900033', '900034', '900035') VALUES (:UNIQUE_ID, :900033, :900034, :900035);";
-  sqlite3_stmt *stmt_insert_crs_bayes_analysis;
-  prepared_statements_map.insert({"sql_insert_crs_bayes_analysis",make_tuple(sql_insert_crs_bayes_analysis, &stmt_insert_crs_bayes_analysis)});
-
-  // ************************* RESPONSE PROFILING **************************
-  const char *sql_insert_crs_response_profiling = "INSERT INTO CRS_55_RESPONSE_PROFILING (UNIQUE_ID, '981187', '981189', '981190', '981191', '981192', '981193', '981194', '981195', '981196', '981197') VALUES (:UNIQUE_ID, :981187, :981189, :981190, :981191, :981192, :981193, :981194, :981195, :981196, :981197);";
-  sqlite3_stmt *stmt_insert_crs_response_profiling;
-  prepared_statements_map.insert({"sql_insert_crs_response_profiling",make_tuple(sql_insert_crs_response_profiling, &stmt_insert_crs_response_profiling)});
-
-  // ************************* PVI CHECKS **************************
-  const char *sql_insert_crs_pvi_checks = "INSERT INTO CRS_56_PVI_CHECKS (UNIQUE_ID, '981198', '981199') VALUES (:UNIQUE_ID, :981198, :981199);";
-  sqlite3_stmt *stmt_insert_crs_pvi_checks;
-  prepared_statements_map.insert({"sql_insert_crs_pvi_checks",make_tuple(sql_insert_crs_pvi_checks, &stmt_insert_crs_pvi_checks)});
-
-  // ************************* IP FORENSICS **************************
-  const char *sql_insert_crs_ip_forensics = "INSERT INTO CRS_61_IP_FORENSICS (UNIQUE_ID, '900036', '900037', '900039') VALUES (:UNIQUE_ID, :900036, :900037, :900039);";
-  sqlite3_stmt *stmt_insert_crs_ip_forensics;
-  prepared_statements_map.insert({"sql_insert_crs_ip_forensics",make_tuple(sql_insert_crs_ip_forensics, &stmt_insert_crs_ip_forensics)});
-
-
-
-  // ************************* IGNORE STATIC **************************
-  const char *sql_insert_crs_ignore_static = "INSERT INTO CRS_10_IGNORE_STATIC (UNIQUE_ID, '900040', '900041', '900042', '900043', '999005', '999006') VALUES (:UNIQUE_ID, :900040, :900041, :900042, :900043, :999005, :999006);";
-  sqlite3_stmt *stmt_insert_crs_ignore_static;
-  prepared_statements_map.insert({"sql_insert_crs_ignore_static",make_tuple(sql_insert_crs_ignore_static, &stmt_insert_crs_ignore_static)});
-
-  // ************************* AV SCANNING **************************
-  const char *sql_insert_crs_av_scanning = "INSERT INTO CRS_46_AV_SCANNING (UNIQUE_ID, '981033', '981034', '981035', '950115') VALUES (:UNIQUE_ID, :981033, :981034, :981035, :950115);";
-  sqlite3_stmt *stmt_insert_crs_av_scanning;
-  prepared_statements_map.insert({"sql_insert_crs_av_scanning",make_tuple(sql_insert_crs_av_scanning, &stmt_insert_crs_av_scanning)});
-
-  // ************************* XML ENABLER **************************
-  const char *sql_insert_crs_xml_enabler = "INSERT INTO CRS_13_XML_ENABLER (UNIQUE_ID, '981053') VALUES (:UNIQUE_ID, :981053);";
-  sqlite3_stmt *stmt_insert_crs_xml_enabler;
-  prepared_statements_map.insert({"sql_insert_crs_xml_enabler",make_tuple(sql_insert_crs_xml_enabler, &stmt_insert_crs_xml_enabler)});
-
-  // ************************* SESSION HIJACKING **************************
-  const char *sql_insert_crs_session_hijacking = "INSERT INTO CRS_16_SESSION_HIJACKING (UNIQUE_ID, '981054', '981055', '981056', '981057', '981058', '981059', '981060', '981061', '981062', '981063', '981064') VALUES (:UNIQUE_ID, :981054, :981055, :981056, :981057, :981058, :981059, :981060, :981061, :981062, :981063, :981064);";
-  sqlite3_stmt *stmt_insert_crs_session_hijacking;
-  prepared_statements_map.insert({"sql_insert_crs_session_hijacking",make_tuple(sql_insert_crs_session_hijacking, &stmt_insert_crs_session_hijacking)});
-
-  // ************************* USERNAME TRACKING **************************
-  const char *sql_insert_crs_username_tracking = "INSERT INTO CRS_16_USERNAME_TRACKING (UNIQUE_ID, '981075', '981076', '981077') VALUES (:UNIQUE_ID, :981075, :981076, :981077);";
-  sqlite3_stmt *stmt_insert_crs_username_tracking;
-  prepared_statements_map.insert({"sql_insert_crs_username_tracking",make_tuple(sql_insert_crs_username_tracking, &stmt_insert_crs_username_tracking)});
-
-  // ************************* CC KNOWN **************************
-  const char *sql_insert_crs_cc_known = "INSERT INTO CRS_25_CC_KNOWN (UNIQUE_ID, '981078', '981079', '920005', '920007', '920009', '920011', '920013', '920015', '920017', '981080', '920020', '920006', '920008', '920010', '920012', '920014', '920016', '920018') VALUES (:UNIQUE_ID, :981078, :981079, :920005, :920007, :920009, :920011, :920013, :920015, :920017, :981080, :920020, :920006, :920008, :920010, :920012, :920014, :920016, :920018);";
-  sqlite3_stmt *stmt_insert_crs_cc_known;
-  prepared_statements_map.insert({"sql_insert_crs_cc_known",make_tuple(sql_insert_crs_cc_known, &stmt_insert_crs_cc_known)});
-
-  // ************************* COMMENT SPAM **************************
-  const char *sql_insert_crs_comment_spam = "INSERT INTO CRS_42_COMMENT_SPAM (UNIQUE_ID, '981137', '981138', '981139', '981140', '958297', '999010', '999011', '950923', '950020') VALUES (:UNIQUE_ID, :981137, :981138, :981139, :981140, :958297, :999010, :999011, :950923, :950020);";
-  sqlite3_stmt *stmt_insert_crs_comment_spam;
-  prepared_statements_map.insert({"sql_insert_crs_comment_spam",make_tuple(sql_insert_crs_comment_spam, &stmt_insert_crs_comment_spam)});
-
-  // ************************* CSRF PROTECTION **************************
-  const char *sql_insert_crs_csrf_protection = "INSERT INTO CRS_43_CSRF_PROTECTION (UNIQUE_ID, '981143', '981144', '981145') VALUES (:UNIQUE_ID, :981143, :981144, :981145);";
-  sqlite3_stmt *stmt_insert_crs_csrf_protection;
-  prepared_statements_map.insert({"sql_insert_crs_csrf_protection",make_tuple(sql_insert_crs_csrf_protection, &stmt_insert_crs_csrf_protection)});
-
-  // ************************* SKIP OUTBOUND CHECKS **************************
-  const char *sql_insert_crs_skip_outbound_checks = "INSERT INTO CRS_47_SKIP_OUTBOUND_CHECKS (UNIQUE_ID, '999008') VALUES (:UNIQUE_ID, :999008);";
-  sqlite3_stmt *stmt_insert_crs_skip_outbound_checks;
-  prepared_statements_map.insert({"sql_insert_crs_skip_outbound_checks",make_tuple(sql_insert_crs_skip_outbound_checks, &stmt_insert_crs_skip_outbound_checks)});
-
-  // ************************* HEADER TAGGING **************************
-  const char *sql_insert_crs_header_tagging = "INSERT INTO CRS_49_HEADER_TAGGING (UNIQUE_ID, '900044', '900045') VALUES (:UNIQUE_ID, :900044, :900045);";
-  sqlite3_stmt *stmt_insert_crs_header_tagging;
-  prepared_statements_map.insert({"sql_insert_crs_header_tagging",make_tuple(sql_insert_crs_header_tagging, &stmt_insert_crs_header_tagging)});
-
-  // ************************* APPLICATION DEFECTS **************************
-  const char *sql_insert_crs_application_defects = "INSERT INTO CRS_55_APPLICATION_DEFECTS (UNIQUE_ID, '981219', '981220', '981221', '981222', '981223', '981224', '981238', '981235', '981184', '981236', '981185', '981239', '900046', '981400', '981401', '981402', '981403', '981404', '981405', '981406', '981407', '900048', '981180', '981181', '981182') VALUES (:UNIQUE_ID, :981219, :981220, :981221, :981222, :981223, :981224, :981238, :981235, :981184, :981236, :981185, :981239, :900046, :981400, :981401, :981402, :981403, :981404, :981405, :981406, :981407, :900048, :981180, :981181, :981182);";
-  sqlite3_stmt *stmt_insert_crs_application_defects;
-  prepared_statements_map.insert({"sql_insert_crs_application_defects",make_tuple(sql_insert_crs_application_defects, &stmt_insert_crs_application_defects)});
-  
-  // ************************* MARKETING **************************
-  const char *sql_insert_crs_marketing = "INSERT INTO CRS_55_MARKETING (UNIQUE_ID, '910008', '910007', '910006') VALUES (:UNIQUE_ID, :910008, :910007, :910006);";
-  sqlite3_stmt *stmt_insert_crs_marketing;
-  prepared_statements_map.insert({"sql_insert_crs_marketing",make_tuple(sql_insert_crs_marketing, &stmt_insert_crs_marketing)});
-
-  // ************************* AVS TRAFFIC **************************
-  const char *sql_insert_crs_avs_traffic = "INSERT INTO CRS_11_AVS_TRAFFIC (UNIQUE_ID, '981033', '981034', '981035') VALUES (:UNIQUE_ID, :981033, :981034, :981035);";
-  sqlite3_stmt *stmt_insert_crs_avs_traffic;
-  prepared_statements_map.insert({"sql_insert_crs_avs_traffic",make_tuple(sql_insert_crs_avs_traffic, &stmt_insert_crs_avs_traffic)});
+    // record counter
+    int recordCounter = 0;
     
-  // ************************* SETUP **************************
-  const char *sql_insert_crs_setup = "INSERT INTO CRS_10_SETUP (UNIQUE_ID, '900001', '900005', '900017', '900018', '900019', '900020', '900021') VALUES (:UNIQUE_ID, :900001, :900005, :900017, :900018, :900019, :900020, :900021);";
-  sqlite3_stmt *stmt_insert_crs_setup;
-  prepared_statements_map.insert({"sql_insert_crs_setup",make_tuple(sql_insert_crs_setup, &stmt_insert_crs_setup)});
-  
-  
-  
-  // sql statement for inserting scores into database
-  const char *sql_insert_anomaly_scores = "INSERT INTO ANOMALY_SCORES (UNIQUE_ID, TOTAL_SCORE, CRS_10_SETUP, CRS_20_PROTOCOL_VIOLATIONS, CRS_21_PROTOCOL_ANOMALIES, CRS_23_REQUEST_LIMITS, CRS_30_HTTP_POLICY, CRS_35_BAD_ROBOTS, CRS_40_GENERIC_ATTACKS, CRS_41_SQL_INJECTION_ATTACKS, CRS_41_XSS_ATTACKS, CRS_42_TIGHT_SECURITY, CRS_45_TROJANS, CRS_47_COMMON_EXCEPTIONS, CRS_48_LOCAL_EXCEPTIONS, CRS_49_INBOUND_BLOCKING, CRS_50_OUTBOUND, CRS_59_OUTBOUND_BLOCKING, CRS_60_CORRELATION, CRS_11_BRUTE_FORCE, CRS_11_DOS_PROTECTION, CRS_16_SCANNER_INTEGRATION, CRS_11_PROXY_ABUSE, CRS_11_SLOW_DOS_PROTECTION, CRS_25_CC_TRACK_PAN, CRS_40_APPSENSOR_DETECTION_POINT, CRS_40_HTTP_PARAMETER_POLLUTION, CRS_42_CSP_ENFORCEMENT, CRS_46_SCANNER_INTEGRATION, CRS_48_BAYES_ANALYSIS, CRS_55_RESPONSE_PROFILING, CRS_56_PVI_CHECKS, CRS_61_IP_FORENSICS, CRS_10_IGNORE_STATIC, CRS_11_AVS_TRAFFIC, CRS_13_XML_ENABLER, CRS_16_AUTHENTICATION_TRACKING, CRS_16_SESSION_HIJACKING, CRS_16_USERNAME_TRACKING, CRS_25_CC_KNOWN, CRS_42_COMMENT_SPAM, CRS_43_CSRF_PROTECTION, CRS_46_AV_SCANNING, CRS_47_SKIP_OUTBOUND_CHECKS, CRS_49_HEADER_TAGGING, CRS_55_APPLICATION_DEFECTS, CRS_55_MARKETING, CRS_59_HEADER_TAGGING) VALUES (:UNIQUE_ID, :total_score, :crs_10_setup, :crs_20_protocol_violations, :crs_21_protocol_anomalies, :crs_23_request_limits, :crs_30_http_policy, :crs_35_bad_robots, :crs_40_generic_attacks, :crs_41_sql_injection_attacks, :crs_41_xss_attacks, :crs_42_tight_security, :crs_45_trojans, :crs_47_common_exceptions, :crs_48_local_exceptions, :crs_49_inbound_blocking, :crs_50_outbound, :crs_59_outbound_blocking, :crs_60_correlation, :crs_11_brute_force, :crs_11_dos_protection, :crs_16_scanner_integration, :crs_11_proxy_abuse, :crs_11_slow_dos_protection, :crs_25_cc_track_pan, :crs_40_appsensor_detection_point, :crs_40_http_parameter_pollution, :crs_42_csp_enforcement, :crs_46_scanner_integration, :crs_48_bayes_analysis, :crs_55_response_profiling, :crs_56_pvi_checks, :crs_61_ip_forensics, :crs_10_ignore_static, :crs_11_avs_traffic, :crs_13_xml_enabler, :crs_16_authentication_tracking, :crs_16_session_hijacking, :crs_16_username_tracking, :crs_25_cc_known, :crs_42_comment_spam, :crs_43_csrf_protection, :crs_46_av_scanning, :crs_47_skip_outbound_checks, :crs_49_header_tagging, :crs_55_application_defects, :crs_55_marketing, :crs_59_header_tagging);";
-  sqlite3_stmt *stmt_insert_anomaly_scores;
-  prepared_statements_map.insert({"sql_insert_anomaly_scores",make_tuple(sql_insert_anomaly_scores, &stmt_insert_anomaly_scores)});
-  
-  
-  
-  
-  //************************************************************************************************
-  
-  // start a transaction - all of the statements from here until END TRANSACTION will be queued and executed at once,
-  // reducing the overhead associated with committing to the database multiple times (massive speed improvement)
-  sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
+    
+    // 1. get size of the vector holding the header strings and line numbers
+    // always two columns because each element in the vector is a pair
+    int rows = results.size(); 
+    
+
+    // open database
+    sqlite3 *db;
+    int rc = sqlite3_open(database.c_str(), &db);
+    if(rc) {
+        cerr << "Can't open database" << endl;
+    } else {
+        if (debug) {cout << "Opened database successfully" << endl;}
+    } 
+
+    char *zErrMsg = 0;
+    
+    
+    
+    // 2. perform queries on the database to get information about data already present, so that we can use the same IDs for matches in this log file
+    
+    // A
+    // - timestamp
+    std::unordered_map<string, int> source_ip_map = get_unordered_map(database,"SELECT source_ip_id, source_ip FROM source_ip;",debug);
+    std::unordered_map<string, int> source_port_map = get_unordered_map(database,"SELECT source_port_id, source_port FROM source_port;",debug);
+    std::unordered_map<string, int> destination_ip_map = get_unordered_map(database,"SELECT destination_ip_id, destination_ip FROM destination_ip;",debug);
+    std::unordered_map<string, int> destination_port_map = get_unordered_map(database,"SELECT destination_port_id, destination_port FROM destination_port;",debug);
+    
+    // B
+    std::unordered_map<string, int> request_method_map = get_unordered_map(database,"SELECT request_method_id, request_method FROM request_method;",debug);
+    std::unordered_map<string, int> uri_map = get_unordered_map(database,"SELECT uri_id, uri FROM uri;",debug);
+    std::unordered_map<string, int> http_version_b_map = get_unordered_map(database,"SELECT http_version_b_id, http_version_b FROM http_version_b;",debug);
+    std::unordered_map<string, int> hosts_map = get_unordered_map(database,"SELECT host_id, host FROM hosts;",debug);
+    std::unordered_map<string, int> connection_b_map = get_unordered_map(database,"SELECT connection_b_id, connection_b FROM connection_b;",debug);
+    std::unordered_map<string, int> accept_map = get_unordered_map(database,"SELECT accept_id, accept FROM accept;",debug);
+    std::unordered_map<string, int> user_agent_map = get_unordered_map(database,"SELECT user_agent_id, user_agent FROM user_agent;",debug);
+    std::unordered_map<string, int> dnt_map = get_unordered_map(database,"SELECT dnt_id, dnt FROM dnt;",debug);
+    std::unordered_map<string, int> referrer_map = get_unordered_map(database,"SELECT referrer_id, referrer FROM referrer;",debug);
+    std::unordered_map<string, int> accept_encoding_map = get_unordered_map(database,"SELECT accept_encoding_id, accept_encoding FROM accept_encoding;",debug);
+    std::unordered_map<string, int> accept_language_map = get_unordered_map(database,"SELECT accept_language_id, accept_language FROM accept_language;",debug);
+    std::unordered_map<string, int> cookie_map = get_unordered_map(database,"SELECT cookie_id, cookie FROM cookie;",debug);
+    std::unordered_map<string, int> x_requested_with_map = get_unordered_map(database,"SELECT x_requested_with_id, x_requested_with FROM x_requested_with;",debug);
+    std::unordered_map<string, int> content_type_b_map = get_unordered_map(database,"SELECT content_type_b_id, content_type_b FROM content_type_b;",debug);
+    std::unordered_map<string, int> content_length_b_map = get_unordered_map(database,"SELECT content_length_b_id, content_length_b FROM content_length_b;",debug);
+    std::unordered_map<string, int> proxy_connection_map = get_unordered_map(database,"SELECT proxy_connection_id, proxy_connection FROM proxy_connection;",debug);
+    std::unordered_map<string, int> accept_charset_map = get_unordered_map(database,"SELECT accept_charset_id, accept_charset FROM accept_charset;",debug);
+    std::unordered_map<string, int> ua_cpu_map = get_unordered_map(database,"SELECT ua_cpu_id, ua_cpu FROM ua_cpu;",debug);
+    std::unordered_map<string, int> x_forwarded_for_map = get_unordered_map(database,"SELECT x_forwarded_for_id, x_forwarded_for FROM x_forwarded_for;",debug);
+    std::unordered_map<string, int> cache_control_b_map = get_unordered_map(database,"SELECT cache_control_b_id, cache_control_b FROM cache_control_b;",debug);
+    std::unordered_map<string, int> via_map = get_unordered_map(database,"SELECT via_id, via FROM via;",debug);
+    std::unordered_map<string, int> if_modified_since_map = get_unordered_map(database,"SELECT if_modified_since_id, if_modified_since FROM if_modified_since;",debug);
+    std::unordered_map<string, int> if_none_match_map = get_unordered_map(database,"SELECT if_none_match_id, if_none_match FROM if_none_match;",debug);
+    std::unordered_map<string, int> pragma_b_map = get_unordered_map(database,"SELECT pragma_b_id, pragma_b FROM pragma_b;",debug);
+    
+    // F
+    std::unordered_map<string, int> http_version_f_map = get_unordered_map(database,"SELECT http_version_f_id, http_version_f FROM http_version_f;",debug);
+    std::unordered_map<string, int> http_status_code_map = get_unordered_map(database,"SELECT http_status_code_id, http_status_code FROM http_status_code;",debug);
+    std::unordered_map<string, int> http_status_text_map = get_unordered_map(database,"SELECT http_status_text_id, http_status_text FROM http_status_text;",debug);
+    std::unordered_map<string, int> x_powered_by_map = get_unordered_map(database,"SELECT x_powered_by_id, x_powered_by FROM x_powered_by;",debug);
+    std::unordered_map<string, int> expires_map = get_unordered_map(database,"SELECT expires_id, expires FROM expires;",debug);
+    std::unordered_map<string, int> cache_control_f_map = get_unordered_map(database,"SELECT cache_control_f_id, cache_control_f FROM cache_control_f;",debug);
+    std::unordered_map<string, int> pragma_f_map = get_unordered_map(database,"SELECT pragma_f_id, pragma_f FROM pragma_f;",debug);
+    std::unordered_map<string, int> vary_map = get_unordered_map(database,"SELECT vary_id, vary FROM vary;",debug);
+    std::unordered_map<string, int> content_encoding_map = get_unordered_map(database,"SELECT content_encoding_id, content_encoding FROM content_encoding;",debug);
+    std::unordered_map<string, int> content_length_f_map = get_unordered_map(database,"SELECT content_length_f_id, content_length_f FROM content_length_f;",debug);
+    std::unordered_map<string, int> connection_f_map = get_unordered_map(database,"SELECT connection_f_id, connection_f FROM connection_f;",debug);
+    std::unordered_map<string, int> content_type_f_map = get_unordered_map(database,"SELECT content_type_f_id, content_type_f FROM content_type_f;",debug);
+    std::unordered_map<string, int> status_map = get_unordered_map(database,"SELECT status_id, status FROM status;",debug);
+    std::unordered_map<string, int> keep_alive_map = get_unordered_map(database,"SELECT keep_alive_id, keep_alive FROM keep_alive;",debug);
+    
+    // H
+    std::unordered_map<string, int> messages_map = get_unordered_map(database,"SELECT messages_id, messages FROM messages;",debug);
+    std::unordered_map<string, int> apache_handler_map = get_unordered_map(database,"SELECT apache_handler_id, apache_handler FROM apache_handler;",debug);
+    // - stopwatch
+    // - stopwatch2
+    std::unordered_map<string, int> producer_map = get_unordered_map(database,"SELECT producer_id, producer FROM producer;",debug);
+    std::unordered_map<string, int> server_map = get_unordered_map(database,"SELECT server_id, server FROM server;",debug);
+    std::unordered_map<string, int> engine_mode_map = get_unordered_map(database,"SELECT engine_mode_id, engine_mode FROM engine_mode;",debug);
+    std::unordered_map<string, int> action_map = get_unordered_map(database,"SELECT action_id, action FROM action;",debug);
+    std::unordered_map<string, int> apache_error_map = get_unordered_map(database,"SELECT apache_error_id, apache_error FROM apache_error;",debug);
+    std::unordered_map<string, int> xml_parser_error_map = get_unordered_map(database,"SELECT xml_parser_error_id, xml_parser_error FROM xml_parser_error;",debug);
+    
+    
+    // get a map of rule ID strings to rule ID data from the user-supplied config file
+    cout << "Generating rule data map from the rule data config file " << rulesdatafile; 
+    map <string, rule_data> ruledatamap = generateruledatamap (rulesdatafile, debug);
+    cout << " ...done" << endl;
+    
+    
+    // generate a map from the rule filename string to a counter
+    
+    map <string, int> rulefiletocountermap;
+    
+    for (const auto &iterator : ruledatamap) {
+        // add the current rule file string to the set 
+        int foo;
+        string ruledatafile = (iterator.second).table_name;
+        rulefiletocountermap.insert ({ruledatafile, foo});
+    }
+    
+    // print the map
+    if (debug) {
+        for (const auto &iterator : rulefiletocountermap) {
+            cout << "Rule file " << iterator.first << " maps to integer " << iterator.second << endl; 
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    // stuff for boost regex matching
+    boost::cmatch match; // cmatch type to hold matches
+    
+    // matches for section A, example data:
+    // [25/Feb/2014:14:00:43 +0000] UwyiC38AAQEAAEx4slsAAAAG 125.210.204.242 40996 192.168.1.103 80
+    // [25/May/2014:08:59:09 +0100] U4GizX8AAQEAAFR-SSYAAAAH ::1 51898 ::1 80
+    
+    //boost::regex A_regex("^\\[(.*)\\]\\s(.{24})\\s(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s(\\d+)\\s(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s(\\d+).*"); // 1st match is TIMESTAMP, 2nd match is APACHE_UID, 3rd match is SOURCE_IP, 4th match is SOURCE_PORT, 5th match is DESTINATION_IP, 6th match is DESTINATION_PORT
+    
+    // 1st match is TIMESTAMP, 2nd match is APACHE_UID, 3rd match is SOURCE_IP, 4th match is SOURCE_PORT, 5th match is DESTINATION_IP, 6th match is DESTINATION_PORT
+    boost::regex A_regex("^\\[(.*)\\]\\s(.{24})\\s(\\d+\\.\\d+\\.\\d+\\.\\d+|::1)\\s(\\d+)\\s(\\d+\\.\\d+\\.\\d+\\.\\d+|::1)\\s(\\d+).*"); 
+    
+
+    
+    
+    // matches for section B (request headers)
+    boost::regex B_regex("^(\\w+)\\s(.*)\\s(HTTP\\/\\d\\.\\d).*"); // 1st match is request method, 2nd match is URI, 3rd match is HTTP version
+    boost::regex B_regex_host("^Host:(.*?)$");
+    boost::regex B_regex_connection("^Connection:(.*?)$");
+    boost::regex B_regex_accept("^Accept:(.*?)$");
+    boost::regex B_regex_useragent("^User-Agent:(.*?)$"); // match for user agent string for use with regex_search
+    boost::regex B_regex_DNT("^DNT:(.*?)$");
+    boost::regex B_regex_referrer("^Referrer:(.*?)$");
+    boost::regex B_regex_accept_encoding("^Accept-Encoding:(.*?)$");
+    boost::regex B_regex_accept_language("^Accept-Language:(.*?)$");
+    boost::regex B_regex_cookie("^Cookie:(.*?)$");
+    boost::regex B_regex_x_requested_with("^X-Requested-With:(.*?)$");
+    boost::regex B_regex_content_type("^Content-Type:(.*?)$");
+    boost::regex B_regex_content_length("^Content-Length:(.*?)$");
+    boost::regex B_regex_proxy_connection("^Proxy-Connection:(.*?)$");
+    boost::regex B_regex_accept_charset("^Accept-Charset:(.*?)$");
+    boost::regex B_regex_UA_CPU("^UA-CPU:(.*?)$");
+    boost::regex B_regex_x_forwarded_for("^X-Forwarded-For:(.*?)$");
+    boost::regex B_regex_cache_control("^Cache-Control:(.*?)$");
+    boost::regex B_regex_via("^Via:(.*?)$");
+    boost::regex B_regex_if_modified_since("^If-Modified-Since:(.*?)$");
+    boost::regex B_regex_if_none_match("^If-None-Match:(.*?)$");
+    boost::regex B_regex_pragma("^Pragma:(.*?)$");
+    
+    
+    // matches for section C (request body)
+    // (none)
+    
+    // section D not implemented by modsecurity
+    // (none)
+    
+    // matches for section E (intermediary response body)
+    // (none)
+    
+    // matches for section F (final response headers)
+    boost::regex F_regex("^(HTTP\\/\\d\\.\\d)\\s(\\d+)\\s(.*?)$"); // 1st match is HTTP version, 2nd match is HTTP code, 3rd match is HTTP code description
+    boost::regex F_regex_x_powered_by("^X-Powered-By:(.*?)$");
+    boost::regex F_regex_expires("^Expires:(.*?)$");
+    boost::regex F_regex_cache_control("^Cache-Control:(.*?)$");
+    boost::regex F_regex_pragma("^Pragma:(.*?)$");
+    boost::regex F_regex_vary("^Vary:(.*?)$");
+    boost::regex F_regex_content_encoding("^Content-Encoding:(.*?)$");
+    boost::regex F_regex_content_length("^Content-Length:(.*?)$");
+    boost::regex F_regex_connection("^Connection:(.*?)$");
+    boost::regex F_regex_content_type("^Content-Type:(.*?)$");
+    boost::regex F_regex_status("^Status:(.*?)$");
+    boost::regex F_regex_keep_alive("^Keep-Alive:(.*?)$");
+    
+    // section G not implemented by modsecurity
+    // (none)
+    
+    // matches for section H (audit log trailer)
+    boost::regex H_regex_messages("^Message:(.*?)$");
+    boost::regex H_regex_apache_handler("^Apache-Handler:(.*?)$");
+    boost::regex H_regex_apache_error("^Apache-Error:(.*?)$");
+    boost::regex H_regex_stopwatch("^Stopwatch:(.*?)$");
+    boost::regex H_regex_stopwatch2("^Stopwatch2:(.*?)$");
+    //boost::regex H_regex_response_body_transformed("^Apache-Handler:(.*?)$");
+    boost::regex H_regex_producer("^Producer:(.*?)$");
+    boost::regex H_regex_server("^Server:(.*?)$");
+    boost::regex H_regex_engine_mode("^Engine-Mode:\\s\"(.*?)\"$");
+    boost::regex H_regex_action("^Action:(.*?)$");
+    boost::regex H_regex_xml_parser_error("^Message: XML parser error:(.*?)$");
+    
+    // matches for any rule ID
+    boost::regex H_regex_any_rule("\\[id\\s\"(\\d{6})\"\\]");
+    
+    
+    // matches for section I (a replacement for part C)
+    // (none)
+    
+    // matches for section J (contains information about files uploaded using multipart/form-data encoding)
+    // (none)
+    
+    // matches for section K (list of every rule that matched, one per line, in the order they were matched)
+    // (none)
+    
+    // create the SQL statements that can be used to commit the values to the database
+    map <string, tuple<const char *, sqlite3_stmt **>> prepared_statements_map;
+    
+    
+    // NB: unbound values in prepared statements are NULL
+    const char *sql_insert_main = "INSERT INTO main (UNIQUE_ID, HEADER, A, B, C, D, E, F, G, H, I, J, K) VALUES (:UNIQUE_ID, :HEADER, :A, :B, :C, :D, :E, :F, :G, :H, :I, :J, :K);";
+    sqlite3_stmt *stmt_insert_main; // compiled statement handle (pointer of type sqlite3_stmt)
+    prepared_statements_map.insert({"sql_insert_main",	make_tuple(sql_insert_main, &stmt_insert_main)});
+    
+    const char *sql_insert_A = "INSERT INTO A (UNIQUE_ID, TIMESTAMP, UNIXTIME, SOURCE_IP_ID, SOURCE_PORT_ID, DESTINATION_IP_ID, DESTINATION_PORT_ID) VALUES (:UNIQUE_ID, :TIMESTAMP, :UNIXTIME, :SOURCE_IP_ID, :SOURCE_PORT_ID, :DESTINATION_IP_ID, :DESTINATION_PORT_ID);";
+    sqlite3_stmt *stmt_insert_A;
+    prepared_statements_map.insert({"sql_insert_A", make_tuple(sql_insert_A, &stmt_insert_A)});
+    
+    const char *sql_insert_B = "INSERT INTO B (UNIQUE_ID, REQUEST_METHOD_ID, URI_ID, HTTP_VERSION_ID, HOST_ID, CONNECTION_ID, ACCEPT_ID, USER_AGENT_ID, DNT_ID, REFERRER_ID, ACCEPT_ENCODING_ID, ACCEPT_LANGUAGE_ID, COOKIE_ID, X_REQUESTED_WITH_ID, CONTENT_TYPE_ID, CONTENT_LENGTH_ID, PROXY_CONNECTION_ID, ACCEPT_CHARSET_ID, UA_CPU_ID, X_FORWARDED_FOR_ID, CACHE_CONTROL_ID, VIA_ID, IF_MODIFIED_SINCE_ID, IF_NONE_MATCH_ID, PRAGMA_ID) VALUES (:UNIQUE_ID, :REQUEST_METHOD_ID, :REQUEST_URI_ID, :REQUEST_HTTP_VERSION_ID, :REQUEST_HOST_ID, :REQUEST_CONNECTION_ID, :REQUEST_ACCEPT_ID, :REQUEST_USER_AGENT_ID, :REQUEST_DNT_ID, :REQUEST_REFERRER_ID, :REQUEST_ACCEPT_ENCODING_ID, :REQUEST_ACCEPT_LANGUAGE_ID, :REQUEST_COOKIE_ID, :REQUEST_X_REQUESTED_WITH_ID, :REQUEST_CONTENT_TYPE_ID, :REQUEST_CONTENT_LENGTH_ID, :REQUEST_PROXY_CONNECTION_ID, :REQUEST_ACCEPT_CHARSET_ID, :REQUEST_UA_CPU_ID, :REQUEST_X_FORWARDED_FOR_ID, :REQUEST_CACHE_CONTROL_ID, :REQUEST_VIA_ID, :REQUEST_IF_MODIFIED_SINCE_ID, :REQUEST_IF_NONE_MATCH_ID, :REQUEST_PRAGMA_ID);";
+    sqlite3_stmt *stmt_insert_B;
+    prepared_statements_map.insert({"sql_insert_B", make_tuple(sql_insert_B, &stmt_insert_B)});
+    
+    const char *sql_insert_F = "INSERT INTO F (UNIQUE_ID, HTTP_VERSION_ID, HTTP_STATUS_CODE_ID, HTTP_STATUS_TEXT_ID, X_POWERED_BY_ID, EXPIRES_ID, CACHE_CONTROL_ID, PRAGMA_ID, VARY_ID, CONTENT_ENCODING_ID, CONTENT_LENGTH_ID, CONNECTION_ID, CONTENT_TYPE_ID, STATUS_ID, KEEP_ALIVE_ID) VALUES (:UNIQUE_ID, :RESPONSE_HTTP_VERSION_ID, :RESPONSE_HTTP_STATUS_CODE_ID, :RESPONSE_HTTP_STATUS_TEXT_ID, :RESPONSE_X_POWERED_BY_ID, :RESPONSE_EXPIRES_ID, :RESPONSE_CACHE_CONTROL_ID, :RESPONSE_PRAGMA_ID, :RESPONSE_VARY_ID, :RESPONSE_CONTENT_ENCODING_ID, :RESPONSE_CONTENT_LENGTH_ID, :RESPONSE_CONNECTION_ID, :RESPONSE_CONTENT_TYPE_ID, :RESPONSE_STATUS_ID, :RESPONSE_KEEP_ALIVE_ID);";
+    sqlite3_stmt *stmt_insert_F;
+    prepared_statements_map.insert({"sql_insert_F",make_tuple(sql_insert_F, &stmt_insert_F)});
+    
+    const char *sql_insert_H = "INSERT INTO H (UNIQUE_ID, MESSAGES_ID, APACHE_HANDLER_ID, APACHE_ERROR_ID, STOPWATCH, STOPWATCH2, PRODUCER_ID, SERVER_ID, ENGINE_MODE_ID, ACTION_ID, XML_PARSER_ERROR_ID) VALUES (:UNIQUE_ID, :TRAILER_MESSAGES_ID, :TRAILER_APACHE_HANDLER_ID, :TRAILER_APACHE_ERROR_ID, :TRAILER_STOPWATCH, :TRAILER_STOPWATCH2, :TRAILER_PRODUCER_ID, :TRAILER_SERVER_ID, :TRAILER_ENGINE_MODE_ID, :TRAILER_ACTION_ID, :TRAILER_XML_PARSER_ERROR_ID);";
+    sqlite3_stmt *stmt_insert_H;
+    prepared_statements_map.insert({"sql_insert_H",make_tuple(sql_insert_H, &stmt_insert_H)});
 
   
   
+  
+  
+  
+  
+    // start a transaction - all of the statements from here until END TRANSACTION will be queued and executed at once,
+    // reducing the overhead associated with committing to the database multiple times (massive speed improvement)
+    sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
+  
+  
+      
+    
+    // create a set of table names from the ruledatamap
+    set<string> tablenames;
+    if (debug) {cout << "Reading table names from the user input map" << endl;}
+    for (auto &ruleID : ruledatamap) {
+        if (debug) {cout << "Read table name: " << ruleID.second.table_name << endl;}
+        tablenames.insert(ruleID.second.table_name);
+    }
+    
+    if (debug) {
+        cout << "The following tables will be created:" << endl;
+        for (const auto &table : tablenames) {
+            cout << table << endl;
+        }
+    }
+    
+    const char *pzTail; // pointer to uncompiled portion of statement
+
+    
+    // CREATE TABLE anomaly_scores (unique_id TEXT PRIMARY KEY, TOTAL_SCORE INTEGER DEFAULT 0, CRS_10_SETUP INTEGER DEFAULT 0, CRS_20_PROTOCOL_VIOLATIONS INTEGER DEFAULT 0, CRS_21_PROTOCOL_ANOMALIES INTEGER DEFAULT 0, CRS_23_REQUEST_LIMITS INTEGER DEFAULT 0, CRS_30_HTTP_POLICY INTEGER DEFAULT 0, CRS_35_BAD_ROBOTS INTEGER DEFAULT 0, CRS_40_GENERIC_ATTACKS INTEGER DEFAULT 0, CRS_41_SQL_INJECTION_ATTACKS INTEGER DEFAULT 0, CRS_41_XSS_ATTACKS INTEGER DEFAULT 0, CRS_42_TIGHT_SECURITY INTEGER DEFAULT 0, CRS_45_TROJANS INTEGER DEFAULT 0, CRS_47_COMMON_EXCEPTIONS INTEGER DEFAULT 0, CRS_48_LOCAL_EXCEPTIONS INTEGER DEFAULT 0, CRS_49_INBOUND_BLOCKING INTEGER DEFAULT 0, CRS_50_OUTBOUND INTEGER DEFAULT 0, CRS_59_OUTBOUND_BLOCKING INTEGER DEFAULT 0, CRS_60_CORRELATION INTEGER DEFAULT 0, CRS_11_BRUTE_FORCE INTEGER DEFAULT 0, CRS_11_DOS_PROTECTION INTEGER DEFAULT 0, CRS_11_PROXY_ABUSE INTEGER DEFAULT 0, CRS_11_SLOW_DOS_PROTECTION INTEGER DEFAULT 0, CRS_16_SCANNER_INTEGRATION INTEGER DEFAULT 0, CRS_25_CC_TRACK_PAN INTEGER DEFAULT 0, CRS_40_APPSENSOR_DETECTION_POINT INTEGER DEFAULT 0, CRS_40_HTTP_PARAMETER_POLLUTION INTEGER DEFAULT 0, CRS_42_CSP_ENFORCEMENT INTEGER DEFAULT 0, CRS_46_SCANNER_INTEGRATION INTEGER DEFAULT 0, CRS_48_BAYES_ANALYSIS INTEGER DEFAULT 0, CRS_55_RESPONSE_PROFILING INTEGER DEFAULT 0, CRS_56_PVI_CHECKS INTEGER DEFAULT 0, CRS_61_IP_FORENSICS INTEGER DEFAULT 0, CRS_10_IGNORE_STATIC INTEGER DEFAULT 0, CRS_11_AVS_TRAFFIC INTEGER DEFAULT 0, CRS_13_XML_ENABLER INTEGER DEFAULT 0, CRS_16_AUTHENTICATION_TRACKING INTEGER DEFAULT 0, CRS_16_SESSION_HIJACKING INTEGER DEFAULT 0, CRS_16_USERNAME_TRACKING INTEGER DEFAULT 0, CRS_25_CC_KNOWN INTEGER DEFAULT 0, CRS_42_COMMENT_SPAM INTEGER DEFAULT 0, CRS_43_CSRF_PROTECTION INTEGER DEFAULT 0, CRS_46_AV_SCANNING INTEGER DEFAULT 0, CRS_47_SKIP_OUTBOUND_CHECKS INTEGER DEFAULT 0, CRS_49_HEADER_TAGGING INTEGER DEFAULT 0, CRS_55_APPLICATION_DEFECTS INTEGER DEFAULT 0, CRS_55_MARKETING INTEGER DEFAULT 0, CRS_59_HEADER_TAGGING INTEGER DEFAULT 0);
+    string sql_create_anomaly_scores = "CREATE TABLE anomaly_scores (UNIQUE_ID TEXT PRIMARY KEY, TOTAL_SCORE INTEGER DEFAULT 0";
+    for (const auto &table : tablenames) {
+        sql_create_anomaly_scores.append(", " + table + " INTEGER DEFAULT 0"); 
+    }
+    sql_create_anomaly_scores.append(");");
+    if (debug) {cout << "Finished SQL insert statement is: " << sql_create_anomaly_scores << endl;}
+    
+    // execute the statement to create the table
+    rc = sqlite3_exec(db, sql_create_anomaly_scores.c_str(), 0, 0, &zErrMsg);
+    if( rc != SQLITE_OK ){
+        cerr << "SQL error creating anomaly scores table, error message: " << zErrMsg << endl;
+    } else {
+        if (debug) {cout << "Anomaly scores table was created successfully." << endl;}
+    }
+    
+    
+    
+    
+    // create an sql insert statement for binding anomaly scores to the anomaly score table
+    // example statement:
+    //INSERT INTO ANOMALY_SCORES (UNIQUE_ID, TOTAL_SCORE, CRS_10_SETUP, CRS_20_PROTOCOL_VIOLATIONS, CRS_21_PROTOCOL_ANOMALIES, CRS_23_REQUEST_LIMITS, CRS_30_HTTP_POLICY, CRS_35_BAD_ROBOTS, CRS_40_GENERIC_ATTACKS, CRS_41_SQL_INJECTION_ATTACKS, CRS_41_XSS_ATTACKS, CRS_42_TIGHT_SECURITY, CRS_45_TROJANS, CRS_47_COMMON_EXCEPTIONS, CRS_48_LOCAL_EXCEPTIONS, CRS_49_INBOUND_BLOCKING, CRS_50_OUTBOUND, CRS_59_OUTBOUND_BLOCKING, CRS_60_CORRELATION, CRS_11_BRUTE_FORCE, CRS_11_DOS_PROTECTION, CRS_16_SCANNER_INTEGRATION, CRS_11_PROXY_ABUSE, CRS_11_SLOW_DOS_PROTECTION, CRS_25_CC_TRACK_PAN, CRS_40_APPSENSOR_DETECTION_POINT, CRS_40_HTTP_PARAMETER_POLLUTION, CRS_42_CSP_ENFORCEMENT, CRS_46_SCANNER_INTEGRATION, CRS_48_BAYES_ANALYSIS, CRS_55_RESPONSE_PROFILING, CRS_56_PVI_CHECKS, CRS_61_IP_FORENSICS, CRS_10_IGNORE_STATIC, CRS_11_AVS_TRAFFIC, CRS_13_XML_ENABLER, CRS_16_AUTHENTICATION_TRACKING, CRS_16_SESSION_HIJACKING, CRS_16_USERNAME_TRACKING, CRS_25_CC_KNOWN, CRS_42_COMMENT_SPAM, CRS_43_CSRF_PROTECTION, CRS_46_AV_SCANNING, CRS_47_SKIP_OUTBOUND_CHECKS, CRS_49_HEADER_TAGGING, CRS_55_APPLICATION_DEFECTS, CRS_55_MARKETING, CRS_59_HEADER_TAGGING) VALUES (:UNIQUE_ID, :total_score, :crs_10_setup, :crs_20_protocol_violations, :crs_21_protocol_anomalies, :crs_23_request_limits, :crs_30_http_policy, :crs_35_bad_robots, :crs_40_generic_attacks, :crs_41_sql_injection_attacks, :crs_41_xss_attacks, :crs_42_tight_security, :crs_45_trojans, :crs_47_common_exceptions, :crs_48_local_exceptions, :crs_49_inbound_blocking, :crs_50_outbound, :crs_59_outbound_blocking, :crs_60_correlation, :crs_11_brute_force, :crs_11_dos_protection, :crs_16_scanner_integration, :crs_11_proxy_abuse, :crs_11_slow_dos_protection, :crs_25_cc_track_pan, :crs_40_appsensor_detection_point, :crs_40_http_parameter_pollution, :crs_42_csp_enforcement, :crs_46_scanner_integration, :crs_48_bayes_analysis, :crs_55_response_profiling, :crs_56_pvi_checks, :crs_61_ip_forensics, :crs_10_ignore_static, :crs_11_avs_traffic, :crs_13_xml_enabler, :crs_16_authentication_tracking, :crs_16_session_hijacking, :crs_16_username_tracking, :crs_25_cc_known, :crs_42_comment_spam, :crs_43_csrf_protection, :crs_46_av_scanning, :crs_47_skip_outbound_checks, :crs_49_header_tagging, :crs_55_application_defects, :crs_55_marketing, :crs_59_header_tagging);
+    
+    string sql_insert_anomaly_scores = "INSERT INTO ANOMALY_SCORES (UNIQUE_ID, TOTAL_SCORE";
+    for (const auto &table : tablenames) {
+        sql_insert_anomaly_scores.append(", " + table); 
+    }
+    sql_insert_anomaly_scores.append(") VALUES (:UNIQUE_ID, :total_score");
+    for (const auto &table : tablenames) {
+        sql_insert_anomaly_scores.append(", :" + table); 
+    }
+    sql_insert_anomaly_scores.append(");");
+    if (debug) {cout << "Finished SQL insert statement is: " << sql_insert_anomaly_scores << endl;}
+    
+    sqlite3_stmt *stmt_insert_anomaly_scores;
+    prepared_statements_map.insert({"sql_insert_anomaly_scores",make_tuple(sql_insert_anomaly_scores.c_str(), &stmt_insert_anomaly_scores)});
+    
+    
+    
+    
+    
+    
+    // generate a "create table" sql statement for each table name in the rulesdata.conf file, using the ruledatamap that was created from it
+    // create a map of "table name strings" to "pointers to compiled sqlite3 statements"
+    map<string,sqlite3_stmt*> insert_statements_map;
+    
+    // for each table name in the set, create a set of rule IDs, use it to generate the "create table" SQL statement and execute it,
+    // use the same set to generate the "insert into" statement and compile it ready to bind values to later.
+    for (const auto &table : tablenames) {
+        set<string> tableIDs;
+        for (const auto &data : ruledatamap) {
+            // if the tablename matches the current one, add the rule ID to the tableIDs set 
+            if (data.second.table_name == table) {
+                tableIDs.insert(data.first);
+            }
+        }
+        
+        
+        // construct a SQL "create table" string from the rule IDs set
+        // example statement:
+        //CREATE TABLE CRS_10_IGNORE_STATIC                   (UNIQUE_ID TEXT PRIMARY KEY,    '900040' INTEGER DEFAULT 0 NOT NULL,    '900041' INTEGER DEFAULT 0 NOT NULL,    '900042' INTEGER DEFAULT 0 NOT NULL,    '900043' INTEGER DEFAULT 0 NOT NULL,    '999005' INTEGER DEFAULT 0 NOT NULL,    '999006' INTEGER DEFAULT 0 NOT NULL	);
+        
+        string sql_create_table = "CREATE TABLE " + table + " (UNIQUE_ID TEXT PRIMARY KEY";
+        for (const auto &id : tableIDs) {
+            sql_create_table.append(", '" + id + "' INTEGER DEFAULT 0 NOT NULL");
+        }
+        sql_create_table.append(");");
+        if (debug) {cout << "Finished SQL create table statement is: " << sql_create_table << endl;}
+        
+        // execute the statement to create the table
+        rc = sqlite3_exec(db, sql_create_table.c_str(), 0, 0, &zErrMsg);
+        if( rc != SQLITE_OK ){
+            cerr << "SQL error creating table " << table << ", error message: " << zErrMsg << endl;
+        } else {
+            if (debug) {cout << "Table " << table << " was created successfully." << endl;}
+        }
+        
+        
+        
+        // construct a SQL "insert into" string from the rule IDs set
+        // example statement:
+        // "INSERT INTO CRS_49_INBOUND_BLOCKING (UNIQUE_ID, '981175', '981176') VALUES (:UNIQUE_ID, :981175, :981176);
+        string sql_insert = "INSERT INTO " + table + " (UNIQUE_ID";
+        for (const auto &id : tableIDs) {
+            sql_insert.append(", '" + id + "'");
+        }
+        sql_insert.append(") VALUES (:UNIQUE_ID");
+        for (const auto &id : tableIDs) {
+            sql_insert.append(", :" + id);
+        }
+        sql_insert.append(");");
+        if (debug) {cout << "Finished SQL insert statement is: " << sql_insert << endl;}
+        
+        // insert the table name into the map
+        sqlite3_stmt *compiled_statement; // must be a pointer to the compiled statement because otherwise type definition is incomplete
+        insert_statements_map.insert({table,compiled_statement});
+        
+        // compile the statement
+        rc = sqlite3_prepare_v2(db, sql_insert.c_str(), sql_insert.length(), &insert_statements_map[table], &pzTail);
+        if( rc != SQLITE_OK ){
+            cerr << "SQL error compiling prepared insert statement for table " << table << ", the error was: " << sqlite3_errmsg(db) << endl;
+        } else {
+            if (debug) {cout << "Prepared statement for inserting values into table " << table << " was compiled successfully" << endl;}
+        }
+        
+    }
   
   
     
   
   // variables for sql compilation
-  const char *pzTail; // pointer to uncompiled portion of statement
+  //const char *pzTail; // pointer to uncompiled portion of statement
+  
   
   int prepared_statement_errors = 0; // sql compilation error counter
   for (const auto &s : prepared_statements_map) {
@@ -777,54 +680,6 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
       if (debug) {cout << "Prepared statement " << s.first << " was compiled successfully" << endl;}
     }
   }
-  
-
-  
-  
-  // map from table name to sql statement
-  map <string, sqlite3_stmt **> tableNameToPreparedStatementMap = {   {"crs_41_sql_xss_attacks", &stmt_insert_crs_xss_attack },
-                                                        {"crs_47_common_exceptions", &stmt_insert_crs_common_exceptions},
-                                                        {"crs_21_protocol_anomalies", &stmt_insert_crs_protocol_anomaly},
-                                                        {"crs_35_bad_robots", &stmt_insert_crs_bad_robot},
-                                                        {"crs_20_protocol_violations", &stmt_insert_crs_protocol_violation},
-                                                        {"crs_23_request_limits", &stmt_insert_crs_request_limit},
-                                                        {"crs_60_correlation", &stmt_insert_crs_correlation},
-                                                        {"crs_50_outbound", &stmt_insert_crs_outbound},
-                                                        {"crs_45_trojans", &stmt_insert_crs_trojans},
-                                                        {"crs_42_tight_security", &stmt_insert_crs_tight_security},
-                                                        {"crs_30_http_policy", &stmt_insert_crs_http_policy},
-                                                        {"crs_41_sql_injection_attacks", &stmt_insert_crs_sql_injection},
-                                                        {"crs_49_inbound_blocking", &stmt_insert_crs_inbound_blocking},
-                                                        {"crs_40_generic_attacks", &stmt_insert_crs_generic_attack},
-                                                        {"crs_59_header_tagging", &stmt_insert_crs_header_tagging},
-                                                        {"crs_11_dos_protection", &stmt_insert_crs_dos},
-                                                        {"crs_55_response_profiling", &stmt_insert_crs_response_profiling},
-                                                        {"crs_11_proxy_abuse", &stmt_insert_crs_proxy_abuse},
-                                                        {"crs_42_csp_enforcement", &stmt_insert_crs_csp_enforcement},
-                                                        {"crs_25_cc_track_pan", &stmt_insert_crs_cc_track_pan},
-                                                        {"crs_40_http_parameter_pollution", &stmt_insert_crs_http_parameter_pollution},
-                                                        {"crs_11_brute_force", &stmt_insert_crs_brute_force},
-                                                        {"crs_16_scanner_integration", &stmt_insert_crs_scanner_integration},
-                                                        {"crs_56_pvi_checks", &stmt_insert_crs_pvi_checks},
-                                                        {"crs_48_bayes_analysis", &stmt_insert_crs_bayes_analysis},
-                                                        {"crs_11_slow_dos_protection", &stmt_insert_crs_slow_dos},
-                                                        {"crs_46_scanner_integration", &stmt_insert_crs_scanner_integration},
-                                                        {"crs_61_ip_forensics", &stmt_insert_crs_ip_forensics},
-                                                        {"crs_49_header_tagging", &stmt_insert_crs_header_tagging},
-                                                        {"crs_55_application_defects", &stmt_insert_crs_application_defects},
-                                                        {"crs_11_avs_traffic", &stmt_insert_crs_avs_traffic},
-                                                        {"crs_43_csrf_protection", &stmt_insert_crs_csrf_protection},
-                                                        {"crs_42_comment_spam", &stmt_insert_crs_comment_spam},
-                                                        {"crs_25_cc_known", &stmt_insert_crs_cc_known},
-                                                        {"crs_10_ignore_static", &stmt_insert_crs_ignore_static},
-                                                        {"crs_16_username_tracking", &stmt_insert_crs_username_tracking},
-                                                        {"crs_13_xml_enabler", &stmt_insert_crs_xml_enabler},
-                                                        {"crs_47_skip_outbound_checks", &stmt_insert_crs_skip_outbound_checks},
-                                                        {"crs_16_session_hijacking", &stmt_insert_crs_session_hijacking},
-                                                        {"crs_46_av_scanning", &stmt_insert_crs_av_scanning},
-                                                        {"crs_55_marketing", &stmt_insert_crs_marketing},
-                                                        {"crs_10_setup", &stmt_insert_crs_setup}
-  };
   
   
   
@@ -929,13 +784,24 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
             DESTINATION_PORT_ID = ID_from_map(DESTINATION_PORT,destination_port_map,debug);
 
 	    // UNIQUE_ID must be bound to all statements
-	    if (debug) {cout << "Binding unique ID to statements" << endl;};
+	    if (debug) {cout << "Binding unique ID to insert statements for base table" << endl;};
 	    for (const auto &s : prepared_statements_map) {
 	      int rc_bind = sqlite3_bind_text(*(get<1>(s.second)), sqlite3_bind_parameter_index(*(get<1>(s.second)), ":UNIQUE_ID"), UNIQUE_ID.c_str(), UNIQUE_ID.length(), 0);
 	      if (rc_bind != SQLITE_OK) {
 		cerr << UNIQUE_ID << ": error binding unique ID to statement " << s.first << ". Code " << rc_bind << " description: " << sqlite3_errmsg(db) << endl;
 	      } else {
 		if (debug) {cout << UNIQUE_ID << ": unique ID bound to " << s.first << " successfully" << endl;}
+	      }
+	    }
+	    
+	    // UNIQUE_ID must be bound to all insert_statements_map statements (used to insert data into rule ID tables generated from user input) 
+	    if (debug) {cout << "Binding unique ID to insert statements for user supplied rule data" << endl;};
+	    for (const auto &s : insert_statements_map) {
+	      int rc_bind = sqlite3_bind_text(s.second, sqlite3_bind_parameter_index(s.second, ":UNIQUE_ID"), UNIQUE_ID.c_str(), UNIQUE_ID.length(), 0);
+	      if (rc_bind != SQLITE_OK) {
+		cerr << UNIQUE_ID << ": error binding unique ID to statement for inserting values into table " << s.first << ". Code " << rc_bind << " description: " << sqlite3_errmsg(db) << endl;
+	      } else {
+		if (debug) {cout << UNIQUE_ID << ": unique ID bound to table " << s.first << " successfully" << endl;}
 	      }
 	    }
 	    
@@ -1393,7 +1259,7 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
                 auto pos = ruledatamap.find(ruleno);
                 
                 if (pos == ruledatamap.end()) { 
-                    cerr << "rule " << ruleno << " was not found in the map" << endl;
+                    cerr << UNIQUE_ID << ": no data found for rule " << ruleno << ", is your config " << rulesdatafile << " out of date? (new file can be generated with crs_to_ruledata.pl script)" << endl;
                 } else {
                     
                     if (debug) {cout << "rule " << ruleno << " was found in the map, looking up weighting" << endl;}
@@ -1462,21 +1328,18 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
             
             
             // need to iterate through user supplied data of rule IDs, look up tablename for each rule ID,
-            // then use the tablename to look up the prepared statement in the tableNameToPreparedStatementMap
+            // then use the tablename to look up the prepared statement in the insert_statements_map
             // bind the number of matches for each rule to the relevant statement
             for (const auto &pos : ruledatamap) {
                 
                 // get ID string
                 string IDstring = pos.second.rule_id;
                 string tablename = pos.second.table_name;
-                
-                sqlite3_stmt *statement;
-                
-                auto pos2 = tableNameToPreparedStatementMap.find(tablename);
-                if (pos2 == tableNameToPreparedStatementMap.end()) {
-                    if (debug) {cerr << "table name " << tablename << " was not found in the map" << endl;}
+
+                auto pos2 = insert_statements_map.find(tablename);
+                if (pos2 == insert_statements_map.end()) {
+                    cerr << "table name " << tablename << " was not found in the map" << endl;
                 } else {
-                    sqlite3_stmt *statement = *pos2->second;
                     
                     string colonnumber = ":" + IDstring;
                     
@@ -1489,12 +1352,13 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
                     } else {
                         num_matches = pos3->second;
                     }
-                    rc_bind = sqlite3_bind_int(statement, sqlite3_bind_parameter_index(statement, colonnumber.c_str()), num_matches);
+                    
+                    rc_bind = sqlite3_bind_int(pos2->second, sqlite3_bind_parameter_index(pos2->second, colonnumber.c_str()), num_matches);
                     
                     if (rc_bind != SQLITE_OK) {
-                    cerr << UNIQUE_ID << ": error binding values for " << IDstring << " . Code " << rc_bind << " description: " << sqlite3_errmsg(db) << endl;
+                        cerr << UNIQUE_ID << ": error binding values for " << IDstring << " to table " << tablename << ". Code " << rc_bind << " description: " << sqlite3_errmsg(db) << endl;
                     } else {
-                    if (debug) {cout << UNIQUE_ID << ": values for " << IDstring << " bound successfully" << endl;}
+                        if (debug) {cout << UNIQUE_ID << ": values for " << IDstring << " bound successfully" << endl;}
                     }
                 }
 		
@@ -1536,16 +1400,36 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
 		if (debug) {cout << UNIQUE_ID << ": " << s.first << " was stepped successfully" << endl;}
 	      }
 	    }
-	    	    
+	    for (const auto &s : insert_statements_map) {
+	      int step_rc = sqlite3_step(s.second);
+	      if (step_rc != SQLITE_OK && step_rc != SQLITE_DONE) {
+		cerr << UNIQUE_ID << ": SQLite error stepping " << s.first << " . Code " << step_rc << ": " << sqlite3_errmsg(db) << endl;
+	      } else {
+		if (debug) {cout << UNIQUE_ID << ": " << s.first << " was stepped successfully" << endl;}
+	      }
+	    }
+            
+            
+            
 	    // reset all of the prepared statements ready to be re-executed
 	    for (const auto &s : prepared_statements_map) {
 	      int reset_rc = sqlite3_reset(*get<1>(s.second));
               
-              // sqlite3_clear_bindings returns SQLITE_OK if the last call to sqlite3_step was SQLITE_ROW or SQLITE_DONE, or
+              // sqlite3_reset returns SQLITE_OK if the last call to sqlite3_step was SQLITE_ROW or SQLITE_DONE, or
               // the error message for the last step if not, there's no point in printing errors now (since they would be a duplicate
               // of what was printed it at the step stage)
               
 	    }
+	    
+	    for (const auto &s : insert_statements_map) {
+	      int reset_rc = sqlite3_reset(s.second);
+              
+              // sqlite3_reset returns SQLITE_OK if the last call to sqlite3_step was SQLITE_ROW or SQLITE_DONE, or
+              // the error message for the last step if not, there's no point in printing errors now (since they would be a duplicate
+              // of what was printed it at the step stage)
+              
+	    }
+	    
 	    
 	    // clear bindings for each prepared statement
 	    for (const auto &s : prepared_statements_map) {
@@ -1557,6 +1441,16 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
 		if (debug) {cout << "Bindings for " << s.first << " were cleared successfully" << endl;}
 	      }
 	    }
+	    for (const auto &s : insert_statements_map) {
+	      int clear_bindings_rc = sqlite3_clear_bindings(s.second);
+              if( clear_bindings_rc != SQLITE_OK ){
+		cerr << UNIQUE_ID << ": SQL error clearing the bindings for " << s.first << "prepared statement: " << sqlite3_errmsg(db) << endl;
+		//cerr << "The error was: "<< sqlite3_errmsg(db) << endl;
+	      } else {
+		if (debug) {cout << "Bindings for " << s.first << " were cleared successfully" << endl;}
+	      }
+	    }
+	    
 	    
 
 	    // increment record counter
@@ -1651,7 +1545,6 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
     
     
     
-    
     // commit ID maps to database
     // A
     commit_maps(db, sql_source_ip_ID, source_ip_map, debug);
@@ -1710,12 +1603,14 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
     commit_maps(db, sql_action_ID, action_map, debug);
     commit_maps(db, sql_apache_error_ID, apache_error_map, debug);
     commit_maps(db, sql_xml_parser_error_ID, xml_parser_error_map, debug);
+    
 
 
 
     
     
     sqlite3_exec(db,"END TRANSACTION",0,0,0);
+    
     
     // now that we are done with these statements they can be destroyed to free resources
     for (const auto &s : prepared_statements_map) {
@@ -1727,6 +1622,17 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
 	if (debug) {cout << "Finalized " << s.first << " statement successfully" << endl;}
       }
     }
+    
+    if (debug) {cout << "Now finalising insert statements for tables created from user supplied rule data" << endl;}
+    for (const auto &s : insert_statements_map) {
+      rc = sqlite3_finalize(s.second);
+      if( rc != SQLITE_OK ){
+	cerr << "SQL error finalizing " << s.first << " statement. The error was: " << sqlite3_errmsg(db) << endl;
+      } else {
+	if (debug) {cout << "Finalized " << s.first << " statement successfully" << endl;}
+      }
+    }    
+    
     
 
   } 
