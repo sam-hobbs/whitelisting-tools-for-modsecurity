@@ -217,10 +217,7 @@ map <string, rule_data> generateruledatamap (string ruledatafile, int debug) {
     if (debug) {cout << "Generating ruledata map" << endl;}
     
     map <string, rule_data> results;
-    
-    // search through ruledata configuration file for parts of ruledata separated by any amount of whitespace
-    //boost::regex ruledataregex("^(\\d{6,7})\\s*(\\w+)\\s*(\\d).*$");
-    
+       
     //RULE_ID TABLENAME ANOMALY_SCORE SQL_SCORE XSS_SCORE TROJAN_SCORE OUTBOUND_ANOMALY_SCORE AUTOMATION_SCORE PROFILER_SCORE
     boost::regex ruledataregex("^(\\d{6,7})\\s*(\\w+)\\s*(\\+?\\d+)\\s*(\\+?\\d+)\\s*(\\+?\\d+)\\s*(\\+?\\d+)\\s*(\\+?\\d+)\\s*(\\+?\\d+)\\s*(\\+?\\d+).*$");
     
@@ -290,6 +287,8 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
     // record counter
     int recordCounter = 0;
     
+    // set holding ruleIDs that have already had errors printed
+    set<string> printedErrorIDs;
     
     // 1. get size of the vector holding the header strings and line numbers
     // always two columns because each element in the vector is a pair
@@ -414,8 +413,6 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
     // [25/Feb/2014:14:00:43 +0000] UwyiC38AAQEAAEx4slsAAAAG 125.210.204.242 40996 192.168.1.103 80
     // [25/May/2014:08:59:09 +0100] U4GizX8AAQEAAFR-SSYAAAAH ::1 51898 ::1 80
     
-    //boost::regex A_regex("^\\[(.*)\\]\\s(.{24})\\s(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s(\\d+)\\s(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s(\\d+).*"); // 1st match is TIMESTAMP, 2nd match is APACHE_UID, 3rd match is SOURCE_IP, 4th match is SOURCE_PORT, 5th match is DESTINATION_IP, 6th match is DESTINATION_PORT
-    
     // 1st match is TIMESTAMP, 2nd match is APACHE_UID, 3rd match is SOURCE_IP, 4th match is SOURCE_PORT, 5th match is DESTINATION_IP, 6th match is DESTINATION_PORT
     boost::regex A_regex("^\\[(.*)\\]\\s(.{24})\\s(\\d+\\.\\d+\\.\\d+\\.\\d+|::1)\\s(\\d+)\\s(\\d+\\.\\d+\\.\\d+\\.\\d+|::1)\\s(\\d+).*"); 
     
@@ -499,6 +496,9 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
     // matches for section K (list of every rule that matched, one per line, in the order they were matched)
     // (none)
     
+    // matches for error reporting
+    boost::regex table_exists_regex("table \\w+ already exists");
+    
     // create the SQL statements that can be used to commit the values to the database
     map <string, tuple<const char *, sqlite3_stmt **>> prepared_statements_map;
     
@@ -520,22 +520,8 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
     sqlite3_stmt *stmt_insert_F;
     prepared_statements_map.insert({"sql_insert_F",make_tuple(sql_insert_F, &stmt_insert_F)});
     
-    const char *sql_insert_H = "INSERT INTO H (UNIQUE_ID, MESSAGES_ID, APACHE_HANDLER_ID, APACHE_ERROR_ID, STOPWATCH, STOPWATCH2, PRODUCER_ID, SERVER_ID, ENGINE_MODE_ID, ACTION_ID, XML_PARSER_ERROR_ID) VALUES (:UNIQUE_ID, :TRAILER_MESSAGES_ID, :TRAILER_APACHE_HANDLER_ID, :TRAILER_APACHE_ERROR_ID, :TRAILER_STOPWATCH, :TRAILER_STOPWATCH2, :TRAILER_PRODUCER_ID, :TRAILER_SERVER_ID, :TRAILER_ENGINE_MODE_ID, :TRAILER_ACTION_ID, :TRAILER_XML_PARSER_ERROR_ID);";
-    sqlite3_stmt *stmt_insert_H;
-    prepared_statements_map.insert({"sql_insert_H",make_tuple(sql_insert_H, &stmt_insert_H)});
+    
 
-  
-  
-  
-  
-  
-  
-    // start a transaction - all of the statements from here until END TRANSACTION will be queued and executed at once,
-    // reducing the overhead associated with committing to the database multiple times (massive speed improvement)
-    sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
-  
-  
-      
     
     // create a set of table names from the ruledatamap
     set<string> tablenames;
@@ -550,12 +536,65 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
         for (const auto &table : tablenames) {
             cout << table << endl;
         }
-    }
+    }    
+    
+    
+    
+    // start a transaction - all of the statements from here until END TRANSACTION will be queued and executed at once,
+    // reducing the overhead associated with committing to the database multiple times (massive speed improvement)
+    sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
     
     const char *pzTail; // pointer to uncompiled portion of statement
+    
+    
 
     
-    // CREATE TABLE anomaly_scores (unique_id TEXT PRIMARY KEY, TOTAL_SCORE INTEGER DEFAULT 0, CRS_10_SETUP INTEGER DEFAULT 0, CRS_20_PROTOCOL_VIOLATIONS INTEGER DEFAULT 0, CRS_21_PROTOCOL_ANOMALIES INTEGER DEFAULT 0, CRS_23_REQUEST_LIMITS INTEGER DEFAULT 0, CRS_30_HTTP_POLICY INTEGER DEFAULT 0, CRS_35_BAD_ROBOTS INTEGER DEFAULT 0, CRS_40_GENERIC_ATTACKS INTEGER DEFAULT 0, CRS_41_SQL_INJECTION_ATTACKS INTEGER DEFAULT 0, CRS_41_XSS_ATTACKS INTEGER DEFAULT 0, CRS_42_TIGHT_SECURITY INTEGER DEFAULT 0, CRS_45_TROJANS INTEGER DEFAULT 0, CRS_47_COMMON_EXCEPTIONS INTEGER DEFAULT 0, CRS_48_LOCAL_EXCEPTIONS INTEGER DEFAULT 0, CRS_49_INBOUND_BLOCKING INTEGER DEFAULT 0, CRS_50_OUTBOUND INTEGER DEFAULT 0, CRS_59_OUTBOUND_BLOCKING INTEGER DEFAULT 0, CRS_60_CORRELATION INTEGER DEFAULT 0, CRS_11_BRUTE_FORCE INTEGER DEFAULT 0, CRS_11_DOS_PROTECTION INTEGER DEFAULT 0, CRS_11_PROXY_ABUSE INTEGER DEFAULT 0, CRS_11_SLOW_DOS_PROTECTION INTEGER DEFAULT 0, CRS_16_SCANNER_INTEGRATION INTEGER DEFAULT 0, CRS_25_CC_TRACK_PAN INTEGER DEFAULT 0, CRS_40_APPSENSOR_DETECTION_POINT INTEGER DEFAULT 0, CRS_40_HTTP_PARAMETER_POLLUTION INTEGER DEFAULT 0, CRS_42_CSP_ENFORCEMENT INTEGER DEFAULT 0, CRS_46_SCANNER_INTEGRATION INTEGER DEFAULT 0, CRS_48_BAYES_ANALYSIS INTEGER DEFAULT 0, CRS_55_RESPONSE_PROFILING INTEGER DEFAULT 0, CRS_56_PVI_CHECKS INTEGER DEFAULT 0, CRS_61_IP_FORENSICS INTEGER DEFAULT 0, CRS_10_IGNORE_STATIC INTEGER DEFAULT 0, CRS_11_AVS_TRAFFIC INTEGER DEFAULT 0, CRS_13_XML_ENABLER INTEGER DEFAULT 0, CRS_16_AUTHENTICATION_TRACKING INTEGER DEFAULT 0, CRS_16_SESSION_HIJACKING INTEGER DEFAULT 0, CRS_16_USERNAME_TRACKING INTEGER DEFAULT 0, CRS_25_CC_KNOWN INTEGER DEFAULT 0, CRS_42_COMMENT_SPAM INTEGER DEFAULT 0, CRS_43_CSRF_PROTECTION INTEGER DEFAULT 0, CRS_46_AV_SCANNING INTEGER DEFAULT 0, CRS_47_SKIP_OUTBOUND_CHECKS INTEGER DEFAULT 0, CRS_49_HEADER_TAGGING INTEGER DEFAULT 0, CRS_55_APPLICATION_DEFECTS INTEGER DEFAULT 0, CRS_55_MARKETING INTEGER DEFAULT 0, CRS_59_HEADER_TAGGING INTEGER DEFAULT 0);
+    // table H has some columns that are created based on the user-supplied rule file data (one column for each rule file name)
+    // create a statement to create table H
+    string sql_create_H = "CREATE TABLE h (unique_id TEXT PRIMARY KEY,    messages_id INTEGER DEFAULT NULL,  apache_handler_id INTEGER DEFAULT NULL, 	stopwatch TEXT, stopwatch2 TEXT, producer_id INTEGER DEFAULT NULL, server_id INTEGER DEFAULT NULL, engine_mode_id INTEGER DEFAULT NULL, action_id INTEGER DEFAULT NULL, apache_error_id INTEGER DEFAULT NULL, xml_parser_error_id INTEGER DEFAULT NULL";
+    for (const auto &table : tablenames) {
+        sql_create_H.append(", " + table + "_messages_id INTEGER DEFAULT NULL"); 
+    }
+    sql_create_H.append(");");
+    if (debug) {cout << "Finished SQL create table statement for H is: " << sql_create_H << endl;}
+    
+    
+    // execute the statement to create table H
+    rc = sqlite3_exec(db, sql_create_H.c_str(), 0, 0, &zErrMsg);
+    if( rc != SQLITE_OK ){
+        if (!boost::regex_match(zErrMsg, match, table_exists_regex)) { // check if the error string is about table already existing
+            cerr << "SQL error creating anomaly scores table, error message: " << zErrMsg << endl;
+        }
+    } else {
+        if (debug) {cout << "Table H was created successfully." << endl;}
+    }
+
+    
+    
+    
+    
+    
+    // now create a sql statement for inserting data into table H
+    string sql_insert_H = "INSERT INTO H (UNIQUE_ID, MESSAGES_ID, APACHE_HANDLER_ID, APACHE_ERROR_ID, STOPWATCH, STOPWATCH2, PRODUCER_ID, SERVER_ID, ENGINE_MODE_ID, ACTION_ID, XML_PARSER_ERROR_ID";
+    for (const auto &table : tablenames) {
+        sql_insert_H.append(", " + table + "_messages_id"); 
+    }
+    sql_insert_H.append(") VALUES (:UNIQUE_ID, :TRAILER_MESSAGES_ID, :TRAILER_APACHE_HANDLER_ID, :TRAILER_APACHE_ERROR_ID, :TRAILER_STOPWATCH, :TRAILER_STOPWATCH2, :TRAILER_PRODUCER_ID, :TRAILER_SERVER_ID, :TRAILER_ENGINE_MODE_ID, :TRAILER_ACTION_ID, :TRAILER_XML_PARSER_ERROR_ID");
+    for (const auto &table : tablenames) {
+        sql_insert_H.append(", :" + table ); 
+    }    
+    sql_insert_H.append(");");
+    
+    if (debug) {cout << "Finished SQL insert statement for H is: " << sql_insert_H << endl;}    
+    
+    const char *sql_insert_H_ptr = sql_insert_H.c_str();
+    sqlite3_stmt *stmt_insert_H;
+    prepared_statements_map.insert({"sql_insert_H",make_tuple(sql_insert_H_ptr, &stmt_insert_H)});
+    
+    
+    // anomaly scores table has unique id, total score, and one column for each rule file name in the user-supplied rule data
+    
+    // CREATE TABLE anomaly_scores (unique_id TEXT PRIMARY KEY, TOTAL_SCORE INTEGER DEFAULT 0, CRS_10_SETUP INTEGER DEFAULT 0 ... );
     string sql_create_anomaly_scores = "CREATE TABLE anomaly_scores (UNIQUE_ID TEXT PRIMARY KEY, TOTAL_SCORE INTEGER DEFAULT 0";
     for (const auto &table : tablenames) {
         sql_create_anomaly_scores.append(", " + table + " INTEGER DEFAULT 0"); 
@@ -566,7 +605,9 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
     // execute the statement to create the table
     rc = sqlite3_exec(db, sql_create_anomaly_scores.c_str(), 0, 0, &zErrMsg);
     if( rc != SQLITE_OK ){
-        cerr << "SQL error creating anomaly scores table, error message: " << zErrMsg << endl;
+        if (!boost::regex_match(zErrMsg, match, table_exists_regex)) { // check if the error string is about table already existing
+            cerr << "SQL error creating anomaly scores table, error message: " << zErrMsg << endl;
+        }
     } else {
         if (debug) {cout << "Anomaly scores table was created successfully." << endl;}
     }
@@ -576,7 +617,7 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
     
     // create an sql insert statement for binding anomaly scores to the anomaly score table
     // example statement:
-    //INSERT INTO ANOMALY_SCORES (UNIQUE_ID, TOTAL_SCORE, CRS_10_SETUP, CRS_20_PROTOCOL_VIOLATIONS, CRS_21_PROTOCOL_ANOMALIES, CRS_23_REQUEST_LIMITS, CRS_30_HTTP_POLICY, CRS_35_BAD_ROBOTS, CRS_40_GENERIC_ATTACKS, CRS_41_SQL_INJECTION_ATTACKS, CRS_41_XSS_ATTACKS, CRS_42_TIGHT_SECURITY, CRS_45_TROJANS, CRS_47_COMMON_EXCEPTIONS, CRS_48_LOCAL_EXCEPTIONS, CRS_49_INBOUND_BLOCKING, CRS_50_OUTBOUND, CRS_59_OUTBOUND_BLOCKING, CRS_60_CORRELATION, CRS_11_BRUTE_FORCE, CRS_11_DOS_PROTECTION, CRS_16_SCANNER_INTEGRATION, CRS_11_PROXY_ABUSE, CRS_11_SLOW_DOS_PROTECTION, CRS_25_CC_TRACK_PAN, CRS_40_APPSENSOR_DETECTION_POINT, CRS_40_HTTP_PARAMETER_POLLUTION, CRS_42_CSP_ENFORCEMENT, CRS_46_SCANNER_INTEGRATION, CRS_48_BAYES_ANALYSIS, CRS_55_RESPONSE_PROFILING, CRS_56_PVI_CHECKS, CRS_61_IP_FORENSICS, CRS_10_IGNORE_STATIC, CRS_11_AVS_TRAFFIC, CRS_13_XML_ENABLER, CRS_16_AUTHENTICATION_TRACKING, CRS_16_SESSION_HIJACKING, CRS_16_USERNAME_TRACKING, CRS_25_CC_KNOWN, CRS_42_COMMENT_SPAM, CRS_43_CSRF_PROTECTION, CRS_46_AV_SCANNING, CRS_47_SKIP_OUTBOUND_CHECKS, CRS_49_HEADER_TAGGING, CRS_55_APPLICATION_DEFECTS, CRS_55_MARKETING, CRS_59_HEADER_TAGGING) VALUES (:UNIQUE_ID, :total_score, :crs_10_setup, :crs_20_protocol_violations, :crs_21_protocol_anomalies, :crs_23_request_limits, :crs_30_http_policy, :crs_35_bad_robots, :crs_40_generic_attacks, :crs_41_sql_injection_attacks, :crs_41_xss_attacks, :crs_42_tight_security, :crs_45_trojans, :crs_47_common_exceptions, :crs_48_local_exceptions, :crs_49_inbound_blocking, :crs_50_outbound, :crs_59_outbound_blocking, :crs_60_correlation, :crs_11_brute_force, :crs_11_dos_protection, :crs_16_scanner_integration, :crs_11_proxy_abuse, :crs_11_slow_dos_protection, :crs_25_cc_track_pan, :crs_40_appsensor_detection_point, :crs_40_http_parameter_pollution, :crs_42_csp_enforcement, :crs_46_scanner_integration, :crs_48_bayes_analysis, :crs_55_response_profiling, :crs_56_pvi_checks, :crs_61_ip_forensics, :crs_10_ignore_static, :crs_11_avs_traffic, :crs_13_xml_enabler, :crs_16_authentication_tracking, :crs_16_session_hijacking, :crs_16_username_tracking, :crs_25_cc_known, :crs_42_comment_spam, :crs_43_csrf_protection, :crs_46_av_scanning, :crs_47_skip_outbound_checks, :crs_49_header_tagging, :crs_55_application_defects, :crs_55_marketing, :crs_59_header_tagging);
+    //INSERT INTO ANOMALY_SCORES (UNIQUE_ID, TOTAL_SCORE, CRS_10_SETUP ... ) VALUES (:UNIQUE_ID, :total_score, :crs_10_setup ...);
     
     string sql_insert_anomaly_scores = "INSERT INTO ANOMALY_SCORES (UNIQUE_ID, TOTAL_SCORE";
     for (const auto &table : tablenames) {
@@ -627,7 +668,9 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
         // execute the statement to create the table
         rc = sqlite3_exec(db, sql_create_table.c_str(), 0, 0, &zErrMsg);
         if( rc != SQLITE_OK ){
-            cerr << "SQL error creating table " << table << ", error message: " << zErrMsg << endl;
+            if (!boost::regex_match(zErrMsg, match, table_exists_regex)) { // check if the error string is about table already existing
+                cerr << "SQL error creating table " << table << ", error message: " << zErrMsg << endl;
+            }
         } else {
             if (debug) {cout << "Table " << table << " was created successfully." << endl;}
         }
@@ -667,7 +710,6 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
   
   // variables for sql compilation
   //const char *pzTail; // pointer to uncompiled portion of statement
-  
   
   int prepared_statement_errors = 0; // sql compilation error counter
   for (const auto &s : prepared_statements_map) {
@@ -718,7 +760,8 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
     string TRAILER_MESSAGES, TRAILER_APACHE_HANDLER, TRAILER_APACHE_ERROR, TRAILER_STOPWATCH, TRAILER_STOPWATCH2, TRAILER_PRODUCER, TRAILER_SERVER, TRAILER_ENGINE_MODE, TRAILER_ACTION, TRAILER_XML_PARSER_ERROR;
     int TRAILER_MESSAGES_ID, TRAILER_APACHE_HANDLER_ID, TRAILER_APACHE_ERROR_ID, TRAILER_STOPWATCH_ID, TRAILER_STOPWATCH2_ID, TRAILER_PRODUCER_ID, TRAILER_SERVER_ID, TRAILER_ENGINE_MODE_ID, TRAILER_ACTION_ID, TRAILER_XML_PARSER_ERROR_ID;
     
-    
+    // map for holding messages related to each table, used in section H
+    map <string,string> messagesmap;
     
     
     // 3. start on vector row 1. determine the header letter type
@@ -1133,6 +1176,71 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
 	    
 	    TRAILER_MESSAGES_ID = ID_from_map(TRAILER_MESSAGES,messages_map,debug);
 	    
+            
+            
+            
+            
+            
+            // split up all messages for this record into messages related to each rule file
+            // messagesmap holds a map of table names to messages related to that rule file
+            // make a stream object from the H string so that it can be processed line by line
+	    
+            // clear values in the messagesmap before starting 
+            messagesmap.erase(messagesmap.begin(), messagesmap.end());
+            
+            std::istringstream messagesStream(TRAILER_MESSAGES);
+            string messageLine;
+            string tableMessages;
+            while (getline(messagesStream, messageLine)) {
+                // match rule IDs in this line
+                if (boost::regex_search(messageLine.c_str(), match, H_regex_any_rule)) {
+                    string id = match[1];
+                    // look up the ID in the rulesdata map, find the name of the rule file (table name) it is from, and add the line to that data in the messagesmap
+                    auto pos = ruledatamap.find(id);
+                    if (pos == ruledatamap.end()) { 
+                        // check if an error for this id has already been printed, if not then print an error and add the ID to the set
+                        auto pos3 = printedErrorIDs.find(id);
+                        if ( pos3 == printedErrorIDs.end() ) {
+                            cerr << UNIQUE_ID << ": no data found for rule " << id << ", is your config " << rulesdatafile << " out of date? (new file can be generated with crs_to_ruledata.pl script)" << endl;
+                            cerr << "note - subsequent errors for this rule ID will be ignored" << endl;
+                            // add the id to the set
+                            printedErrorIDs.insert(id);
+                        }
+                    } else {
+                        if (debug) {cout << "rule " << id << " was found in the map, looking up table name" << endl;}
+                        string tablename = (pos->second).table_name; // value is ruledata structure
+                        // get current data for table name from the messagesmap
+                        auto pos2 = messagesmap.find(tablename);
+                        if (pos2 == messagesmap.end()) {
+                            // no data in the map yet
+                            messagesmap[tablename] = messageLine;
+                        } else {
+                            // add to the current data
+                            string currentdata = messagesmap[tablename];
+                            currentdata.append(messageLine);
+                            currentdata.append("\n");
+                            messagesmap[tablename] = currentdata;
+                        }
+                    }
+                }
+            }
+            
+            // bind data from the messagesmap to the columns in table H
+            for ( const auto &id : messagesmap ) {
+                // get ID for this messages from the map (inserts a new record if one doesn't exist already)
+                int bind_data = ID_from_map(id.second,messages_map,debug);
+                // bind the data
+                string coloncolumn = ":";
+                coloncolumn.append(id.first);
+                bind_ID (stmt_insert_H, coloncolumn.c_str(), bind_data, debug);
+            }
+            
+            
+            
+            
+            
+            
+            
 	    
 	    if (boost::regex_search(H.c_str(), match, H_regex_apache_handler)) {
 	      TRAILER_APACHE_HANDLER = match[1];
@@ -1259,7 +1367,14 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
                 auto pos = ruledatamap.find(ruleno);
                 
                 if (pos == ruledatamap.end()) { 
-                    cerr << UNIQUE_ID << ": no data found for rule " << ruleno << ", is your config " << rulesdatafile << " out of date? (new file can be generated with crs_to_ruledata.pl script)" << endl;
+                    // check if an error for this id has already been printed, if not then print an error and add the ID to the set
+                    auto pos3 = printedErrorIDs.find(ruleno);
+                    if ( pos3 == printedErrorIDs.end() ) {
+                        cerr << UNIQUE_ID << ": no data found for rule " << ruleno << ", is your config " << rulesdatafile << " out of date? (new file can be generated with crs_to_ruledata.pl script)" << endl;
+                        cerr << "note - subsequent errors for this rule ID will be ignored" << endl;
+                        // add the id to the set
+                        printedErrorIDs.insert(ruleno);
+                    }
                 } else {
                     
                     if (debug) {cout << "rule " << ruleno << " was found in the map, looking up weighting" << endl;}
