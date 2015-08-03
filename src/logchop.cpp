@@ -484,7 +484,7 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
     boost::regex H_regex_xml_parser_error("^Message: XML parser error:(.*?)$");
     
     // matches for any rule ID
-    boost::regex H_regex_any_rule("\\[id\\s\"(\\d{6})\"\\]");
+    boost::regex H_regex_any_rule("\\[id\\s\"(\\d{6,7})\"\\]");
     
     
     // matches for section I (a replacement for part C)
@@ -1218,7 +1218,7 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
                             // add to the current data
                             string currentdata = messagesmap[tablename];
                             currentdata.append(messageLine);
-                            currentdata.append("\n");
+                            currentdata.append(string("\n"));
                             messagesmap[tablename] = currentdata;
                         }
                     }
