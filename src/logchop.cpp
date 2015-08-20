@@ -426,7 +426,7 @@ int logchop(string database, string logfile, string rulesdatafile, vector<pair<i
     boost::regex B_regex_accept("^Accept:(.*?)$");
     boost::regex B_regex_useragent("^User-Agent:(.*?)$"); // match for user agent string for use with regex_search
     boost::regex B_regex_DNT("^DNT:(.*?)$");
-    boost::regex B_regex_referrer("^Referrer:(.*?)$");
+    boost::regex B_regex_referrer("^Referer:(.*?)$");
     boost::regex B_regex_accept_encoding("^Accept-Encoding:(.*?)$");
     boost::regex B_regex_accept_language("^Accept-Language:(.*?)$");
     boost::regex B_regex_cookie("^Cookie:(.*?)$");
