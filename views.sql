@@ -1586,3 +1586,7 @@ LEFT OUTER JOIN xml_parser_error ON h.xml_parser_error_id = xml_parser_error.xml
 WHERE
 a.unique_id = b.unique_id AND a.unique_id =  h.unique_id AND a.unique_id = f.unique_id AND a.unique_id = anomaly_scores.unique_id
 ORDER BY unixtime;
+
+--SELECT * FROM human_readable WHERE uri GLOB '/comment/*/edit' AND request_method='POST';
+
+--SELECT * FROM blocked_comments WHERE source_ip='192.168.1.1';
