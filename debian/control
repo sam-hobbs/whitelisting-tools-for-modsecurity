@@ -1,0 +1,22 @@
+Source: ams-whitelisting-tools
+Section: utils
+Priority: optional
+Maintainer: Sam Hobbs <sam@samhobbs.co.uk>
+Build-Depends: debhelper (>= 9), autotools-dev, libsqlite3-dev, libboost-regex-dev
+Standards-Version: 3.9.5
+Homepage: https://samhobbs.co.uk
+Vcs-Git: https://github.com/sam-hobbs/ams-whitelisting-tools.git
+Vcs-Browser: https://github.com/sam-hobbs/ams-whitelisting-tools
+
+Package: ams-whitelisting-tools
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Suggests: apache2, libapache2-mod-security2, modsecurity-crs
+Description: Whitelisting tools for Apache ModSecurity 
+ Tools to simplify the creation of a whitelist for Apache's ModSecurity when used
+ in with the Open Web Application Security Project's Core Rule Set (OWASP CRS).
+ At present, the project is a commandline tool auditlog2db that reads the ModSecurity
+ audit log file into a SQLite database.
+ Future development aims to add a GUI and a wizard for whitelist creation, to reduce
+ the barrier to entry for amateur users.
+ Not affiliated with the Apache project, ModSecurity developers, or the OWASP.
