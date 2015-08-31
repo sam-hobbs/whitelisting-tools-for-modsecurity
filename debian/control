@@ -5,10 +5,10 @@ Maintainer: Sam Hobbs <sam@samhobbs.co.uk>
 Build-Depends: debhelper (>= 9), autotools-dev, libsqlite3-dev, libboost-regex-dev
 Standards-Version: 3.9.5
 Homepage: https://samhobbs.co.uk
-Vcs-Git: https://github.com/sam-hobbs/ams-whitelisting-tools.git
-Vcs-Browser: https://github.com/sam-hobbs/ams-whitelisting-tools
+Vcs-Git: https://github.com/sam-hobbs/whitelisting-tools-for-modsecurity.git
+Vcs-Browser: https://github.com/sam-hobbs/whitelisting-tools-for-modsecurity
 
-Package: ams-whitelisting-tools
+Package: whitelisting-tools-modsecurity
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Suggests: apache2, libapache2-mod-security2, modsecurity-crs
