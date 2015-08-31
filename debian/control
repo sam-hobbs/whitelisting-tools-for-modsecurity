@@ -1,4 +1,4 @@
-Source: ams-whitelisting-tools
+Source: whitelisting-tools-modsecurity
 Section: utils
 Priority: optional
 Maintainer: Sam Hobbs <sam@samhobbs.co.uk>
@@ -12,6 +12,7 @@ Package: ams-whitelisting-tools
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Suggests: apache2, libapache2-mod-security2, modsecurity-crs
+Replaces: ams-whitelisting-tools
 Description: Whitelisting tools for Apache ModSecurity 
  Tools to simplify the creation of a whitelist for Apache's ModSecurity when used
  in with the Open Web Application Security Project's Core Rule Set (OWASP CRS).
