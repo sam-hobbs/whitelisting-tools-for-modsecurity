@@ -41,6 +41,39 @@ private:
     std::string apachetimeToUnixtime(const std::string &timestamp);
 };
 
+class RequestHeaders {
+public:
+    RequestHeaders(QString data);
+    void clear();
+
+    QString completeString;
+
+    QString requestMethod;
+    QString uri;
+    QString httpVersion;
+    QString host;
+    QString connection;
+    QString accept;
+    QString userAgent;
+    QString dnt;
+    QString referrer;
+    QString acceptEncoding;
+    QString acceptLanguage;
+    QString cookie;
+    QString xRequestedWith;
+    QString contentType;
+    QString contentLength;
+    QString proxyConnection;
+    QString acceptCharset;
+    QString userAgentCPU;
+    QString xForwardedFor;
+    QString cacheControl;
+    QString via;
+    QString ifModifiedSince;
+    QString ifNoneMatch;
+    QString pragma;
+};
+
 class AuditLogRecord {
 
 public:
@@ -59,7 +92,7 @@ public:
     void clear();
 
 //    QString auditLogHeader; // A
-    QString requestHeaders; // B
+//    QString requestHeaders; // B
     QString requestBody; // C
     QString intendedResponseHeaders; // D
     QString intendedResponseBody; // E
@@ -72,6 +105,7 @@ public:
 
 
     AuditLogHeader * auditLogHeader;
+    RequestHeaders * requestHeaders;
 
 };
 

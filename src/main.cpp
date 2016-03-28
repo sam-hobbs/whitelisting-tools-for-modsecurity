@@ -88,6 +88,7 @@ int main (int argc , char **argv) {
         }
     } catch (...) {
         qCritical() << "Import failed";
+        return 1;
     }
-
+    return 0;
 }

@@ -37,7 +37,7 @@ private:
 
     QString filepath;
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", 0);
-    bool isOpen;
+    bool isOpen = 0;
     bool debug;
     bool showProgress;
 };

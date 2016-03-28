@@ -156,7 +156,79 @@ void AuditLogDatabase::importLogFile(const QString logfile) {
 
         QSqlQuery insert_request_method(db);
 
+        QSqlQuery insert_b_request_method(db);
+        QSqlQuery insert_b_uri(db);
+        QSqlQuery insert_b_http_version(db);
+        QSqlQuery insert_b_host(db);
+        QSqlQuery insert_b_connection(db);
+        QSqlQuery insert_b_accept(db);
+        QSqlQuery insert_b_user_agent(db);
+        QSqlQuery insert_b_dnt(db);
+        QSqlQuery insert_b_referrer(db);
+        QSqlQuery insert_b_accept_encoding(db);
+        QSqlQuery insert_b_accept_language(db);
+        QSqlQuery insert_b_cookie(db);
+        QSqlQuery insert_b_x_requested_with(db);
+        QSqlQuery insert_b_content_type(db);
+        QSqlQuery insert_b_content_length(db);
+        QSqlQuery insert_b_proxy_connection(db);
+        QSqlQuery insert_b_accept_charset(db);
+        QSqlQuery insert_b_ua_cpu(db);
+        QSqlQuery insert_b_x_forwarded_for(db);
+        QSqlQuery insert_b_cache_control(db);
+        QSqlQuery insert_b_via(db);
+        QSqlQuery insert_b_if_modified_since(db);
+        QSqlQuery insert_b_if_none_match(db);
+        QSqlQuery insert_b_pragma(db);
 
+        if(!insert_b_request_method.prepare("INSERT OR IGNORE INTO x_b_request_method (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_request_method statement";
+        if(!insert_b_uri.prepare("INSERT OR IGNORE INTO x_b_uri (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_uri statement";
+        if(!insert_b_http_version.prepare("INSERT OR IGNORE INTO x_b_http_version (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_http_version statement";
+        if(!insert_b_host.prepare("INSERT OR IGNORE INTO x_b_host (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_host statement";
+        if(!insert_b_connection.prepare("INSERT OR IGNORE INTO x_b_connection (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_connection statement";
+        if(!insert_b_accept.prepare("INSERT OR IGNORE INTO x_b_accept (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_accept statement";
+        if(!insert_b_user_agent.prepare("INSERT OR IGNORE INTO x_b_user_agent (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_user_agent statement";
+        if(!insert_b_dnt.prepare("INSERT OR IGNORE INTO x_b_dnt (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_dnt statement";
+        if(!insert_b_referrer.prepare("INSERT OR IGNORE INTO x_b_referrer (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_referrer statement";
+        if(!insert_b_accept_encoding.prepare("INSERT OR IGNORE INTO x_b_accept_encoding (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_accept_encoding statement";
+        if(!insert_b_accept_language.prepare("INSERT OR IGNORE INTO x_b_accept_language (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_accept_language statement";
+        if(!insert_b_cookie.prepare("INSERT OR IGNORE INTO x_b_cookie (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_cookie statement";
+        if(!insert_b_x_requested_with.prepare("INSERT OR IGNORE INTO x_b_x_requested_with (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_x_requested_with statement";
+        if(!insert_b_content_type.prepare("INSERT OR IGNORE INTO x_b_content_type (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_content_type statement";
+        if(!insert_b_content_length.prepare("INSERT OR IGNORE INTO x_b_content_length (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_content_length statement";
+        if(!insert_b_proxy_connection.prepare("INSERT OR IGNORE INTO x_b_proxy_connection (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_proxy_connection statement";
+        if(!insert_b_accept_charset.prepare("INSERT OR IGNORE INTO x_b_accept_charset (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_accept_charset statement";
+        if(!insert_b_ua_cpu.prepare("INSERT OR IGNORE INTO x_b_ua_cpu (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_ua_cpu statement";
+        if(!insert_b_x_forwarded_for.prepare("INSERT OR IGNORE INTO x_b_x_forwarded_for (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_x_forwarded_for statement";
+        if(!insert_b_cache_control.prepare("INSERT OR IGNORE INTO x_b_cache_control (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_cache_control statement";
+        if(!insert_b_via.prepare("INSERT OR IGNORE INTO x_b_via (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_via statement";
+        if(!insert_b_if_modified_since.prepare("INSERT OR IGNORE INTO x_b_if_modified_since (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_if_modified_since statement";
+        if(!insert_b_if_none_match.prepare("INSERT OR IGNORE INTO x_b_if_none_match (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_if_none_match statement";
+        if(!insert_b_pragma.prepare("INSERT OR IGNORE INTO x_b_pragma (data) VALUES (:data)"))
+            throw "failed to prepare insert_b_pragma statement";
 
         // data structure to hold the current record's data, will be cleared after data has been bound in Z
         AuditLogRecord record;
@@ -231,7 +303,7 @@ void AuditLogDatabase::importLogFile(const QString logfile) {
                         // bind the data to the queries
                         insert_main.bindValue(":unique_id", record.auditLogHeader->uniqueID);
                         insert_main.bindValue(":a_auditlogheader", record.auditLogHeader->completeString);
-                        insert_main.bindValue(":b_requestheaders", record.requestHeaders);
+                        insert_main.bindValue(":b_requestheaders", record.requestHeaders->completeString);
                         insert_main.bindValue(":c_requestbody", record.requestBody);
                         insert_main.bindValue(":d_intendedresponseheaders", record.intendedResponseHeaders);
                         insert_main.bindValue(":e_intendedresponsebody", record.intendedResponseBody);
@@ -251,12 +323,67 @@ void AuditLogDatabase::importLogFile(const QString logfile) {
                         // A (auditlog header)
                         insert_audit_log_header.bindValue(":unique_id", record.auditLogHeader->uniqueID);
                         insert_audit_log_header.bindValue(":timestamp", record.auditLogHeader->apacheTimestamp);
-                        insert_audit_log_header.bindValue(":unixtime", record.auditLogHeader->unixtime); // TODO - check me new
+                        insert_audit_log_header.bindValue(":unixtime", record.auditLogHeader->unixtime);
                         insert_audit_log_header.bindValue(":source_ip", record.auditLogHeader->sourceIP);
                         insert_audit_log_header.bindValue(":source_port", record.auditLogHeader->sourcePort);
                         insert_audit_log_header.bindValue(":destination_ip", record.auditLogHeader->destinationIP);
                         insert_audit_log_header.bindValue(":destination_port", record.auditLogHeader->destinationPort);
-                        //qDebug() << "values are " + record.auditLogHeader->sourceIP + " " + record.auditLogHeader->sourcePort + " " + record.auditLogHeader->destinationIP + " " + record.auditLogHeader->destinationPort;
+
+                        // value tables for B
+                        // TODO - modify RequestHeader class constructor to extract the individual parts of the header
+                        insert_b_request_method.bindValue(":data", record.requestHeaders->requestMethod);
+                        insert_b_uri.bindValue(":data", record.requestHeaders->uri);
+                        insert_b_http_version.bindValue(":data", record.requestHeaders->httpVersion);
+                        insert_b_host.bindValue(":data",record.requestHeaders->host);
+                        insert_b_connection.bindValue(":data",record.requestHeaders->connection);
+                        insert_b_accept.bindValue(":data",record.requestHeaders->accept);
+                        insert_b_user_agent.bindValue(":data",record.requestHeaders->userAgent);
+                        insert_b_dnt.bindValue(":data",record.requestHeaders->dnt);
+                        insert_b_referrer.bindValue(":data",record.requestHeaders->referrer);
+                        insert_b_accept_encoding.bindValue(":data",record.requestHeaders->acceptEncoding);
+                        insert_b_accept_language.bindValue(":data",record.requestHeaders->acceptLanguage);
+                        insert_b_cookie.bindValue(":data",record.requestHeaders->cookie);
+                        insert_b_x_requested_with.bindValue(":data",record.requestHeaders->xRequestedWith);
+                        insert_b_content_type.bindValue(":data",record.requestHeaders->contentType);
+                        insert_b_content_length.bindValue(":data",record.requestHeaders->contentLength);
+                        insert_b_proxy_connection.bindValue(":data",record.requestHeaders->proxyConnection);
+                        insert_b_accept_charset.bindValue(":data",record.requestHeaders->acceptCharset);
+                        insert_b_ua_cpu.bindValue(":data",record.requestHeaders->userAgentCPU);
+                        insert_b_x_forwarded_for.bindValue(":data",record.requestHeaders->xForwardedFor);
+                        insert_b_cache_control.bindValue(":data",record.requestHeaders->cacheControl);
+                        insert_b_via.bindValue(":data",record.requestHeaders->via);
+                        insert_b_if_modified_since.bindValue(":data",record.requestHeaders->ifModifiedSince);
+                        insert_b_if_none_match.bindValue(":data",record.requestHeaders->ifNoneMatch);
+                        insert_b_pragma.bindValue(":data",record.requestHeaders->pragma);
+
+                        // B request headers
+                        insert_request_headers.bindValue(":unique_id",record.auditLogHeader->uniqueID);
+                        insert_request_headers.bindValue(":request_method",record.requestHeaders->requestMethod);
+                        insert_request_headers.bindValue(":uri",record.requestHeaders->uri);
+                        insert_request_headers.bindValue(":http_version",record.requestHeaders->httpVersion);
+                        insert_request_headers.bindValue(":host",record.requestHeaders->host);
+                        insert_request_headers.bindValue(":connection",record.requestHeaders->connection);
+                        insert_request_headers.bindValue(":accept",record.requestHeaders->accept);
+                        insert_request_headers.bindValue(":user_agent",record.requestHeaders->userAgent);
+                        insert_request_headers.bindValue(":dnt",record.requestHeaders->dnt);
+                        insert_request_headers.bindValue(":referrer",record.requestHeaders->referrer);
+                        insert_request_headers.bindValue(":accept_encoding",record.requestHeaders->acceptEncoding);
+                        insert_request_headers.bindValue(":accept_language",record.requestHeaders->acceptLanguage);
+                        insert_request_headers.bindValue(":cookie",record.requestHeaders->cookie);
+                        insert_request_headers.bindValue(":x_requested_with",record.requestHeaders->xRequestedWith);
+                        insert_request_headers.bindValue(":content_type",record.requestHeaders->contentType);
+                        insert_request_headers.bindValue(":content_length",record.requestHeaders->contentLength);
+                        insert_request_headers.bindValue(":proxy_connection",record.requestHeaders->proxyConnection);
+                        insert_request_headers.bindValue(":accept_charset",record.requestHeaders->acceptCharset);
+                        insert_request_headers.bindValue(":ua_cpu",record.requestHeaders->userAgentCPU);
+                        insert_request_headers.bindValue(":x_forwarded_for",record.requestHeaders->xForwardedFor);
+                        insert_request_headers.bindValue(":cache_control",record.requestHeaders->cacheControl);
+                        insert_request_headers.bindValue(":via",record.requestHeaders->via);
+                        insert_request_headers.bindValue(":if_modified_since",record.requestHeaders->ifModifiedSince);
+                        insert_request_headers.bindValue(":if_none_match",record.requestHeaders->ifNoneMatch);
+                        insert_request_headers.bindValue(":pragma",record.requestHeaders->pragma);
+
+
 
                         // execute the queries
 
@@ -264,6 +391,7 @@ void AuditLogDatabase::importLogFile(const QString logfile) {
                             if( insert_main.lastError().databaseText() == QString("UNIQUE constraint failed: main.unique_id") ) {
                                 if(showProgress) qWarning().noquote() << ""; // don't write the error on top of the progress bar!
                                 qWarning().noquote() << "Record " + record.auditLogHeader->uniqueID + " is already in the database";
+                                // TODO - add a boolean to AuditlogRecord to record whether the record has already been inserted, don't continue if it has (or throw an exception to skip the rest of the inserts to avoid printing multiple errors?)
                             } else {
                                 if(showProgress) qWarning().noquote() << "";
                                 qWarning() << "Warning: record could not be inserted, error is (" << insert_main.lastError().databaseText() +  ", " + insert_main.lastError().driverText() + ")";
@@ -279,7 +407,38 @@ void AuditLogDatabase::importLogFile(const QString logfile) {
 
                         if (!insert_audit_log_header.exec()) {
                             if(showProgress) qWarning().noquote() << "";
-                            qWarning() << "Warning: record could not be inserted, error is (" << insert_audit_log_header.lastError().databaseText() +  ", " + insert_audit_log_header.lastError().driverText() + ")";
+                            qWarning() << "Warning: audit log header could not be inserted, error is (" << insert_audit_log_header.lastError().databaseText() +  ", " + insert_audit_log_header.lastError().driverText() + ")";
+                        }
+
+
+                        insert_b_request_method.exec();
+                        insert_b_uri.exec();
+                        insert_b_http_version.exec();
+                        insert_b_host.exec();
+                        insert_b_connection.exec();
+                        insert_b_accept.exec();
+                        insert_b_user_agent.exec();
+                        insert_b_dnt.exec();
+                        insert_b_referrer.exec();
+                        insert_b_accept_encoding.exec();
+                        insert_b_accept_language.exec();
+                        insert_b_cookie.exec();
+                        insert_b_x_requested_with.exec();
+                        insert_b_content_type.exec();
+                        insert_b_content_length.exec();
+                        insert_b_proxy_connection.exec();
+                        insert_b_accept_charset.exec();
+                        insert_b_ua_cpu.exec();
+                        insert_b_x_forwarded_for.exec();
+                        insert_b_cache_control.exec();
+                        insert_b_via.exec();
+                        insert_b_if_modified_since.exec();
+                        insert_b_if_none_match.exec();
+                        insert_b_pragma.exec();
+
+                        if (!insert_request_headers.exec()) {
+                            if(showProgress) qWarning().noquote() << "";
+                            qWarning() << "Warning: request headers could not be inserted, error is (" << insert_request_headers.lastError().databaseText() +  ", " + insert_request_headers.lastError().driverText() + ")";
                         }
 
                         // clear the record and start again
@@ -356,8 +515,34 @@ bool AuditLogDatabase::createDatabase() {
 
     // generate sql queries for creating each table
     QSqlQuery create_table_main(QString("CREATE TABLE IF NOT EXISTS main (unique_id TEXT PRIMARY KEY, a_auditlogheader TEXT, b_requestheaders TEXT, c_requestbody TEXT, d_intendedresponseheaders TEXT, e_intendedresponsebody TEXT, f_responseheaders TEXT, g_responsebody TEXT, h_auditlogtrailer TEXT, i_reducedmultipartrequestbody TEXT, j_multipartfilesinformation TEXT, k_matchedrules TEXT)"),db);
-    QSqlQuery create_table_a_auditlogheader(QString("CREATE TABLE IF NOT EXISTS a_auditlogheader (unique_id TEXT PRIMARY KEY,    timestamp TEXT, unixtime TEXT, source_ip_id INTEGER NOT NULL, source_port_id INTEGER NOT NULL, destination_ip_id INTEGER NOT NULL, destination_port_id INTEGER NOT NULL)"),db);
-    QSqlQuery create_table_b_requestheaders(QString("CREATE TABLE IF NOT EXISTS b_requestheaders (unique_id TEXT PRIMARY KEY,    request_method_id INTEGER NOT NULL, uri_id INTEGER NOT NULL,  http_version_id INTEGER DEFAULT NULL, host_id INTEGER DEFAULT NULL, connection_id INTEGER DEFAULT NULL, accept_id INTEGER DEFAULT NULL, user_agent_id INTEGER DEFAULT NULL, dnt_id INTEGER DEFAULT NULL, referrer_id INTEGER DEFAULT NULL, accept_encoding_id INTEGER DEFAULT NULL, accept_language_id INTEGER DEFAULT NULL, cookie_id INTEGER DEFAULT NULL,x_requested_with_id INTEGER DEFAULT NULL, content_type_id INTEGER DEFAULT NULL, content_length_id INTEGER DEFAULT NULL, proxy_connection_id INTEGER DEFAULT NULL, accept_charset_id INTEGER DEFAULT NULL, ua_cpu_id INTEGER DEFAULT NULL, x_forwarded_for_id INTEGER DEFAULT NULL, cache_control_id INTEGER DEFAULT NULL, via_id INTEGER DEFAULT NULL, if_modified_since_id INTEGER DEFAULT NULL, if_none_match_id INTEGER DEFAULT NULL, pragma_id INTEGER DEFAULT NULL)"),db);
+    QSqlQuery create_table_a_auditlogheader(QString("CREATE TABLE IF NOT EXISTS a_auditlogheader (unique_id TEXT PRIMARY KEY,    timestamp TEXT, unixtime TEXT,"
+                                                    "source_ip_id INTEGER NOT NULL, source_port_id INTEGER NOT NULL, destination_ip_id INTEGER NOT NULL,"
+                                                    "destination_port_id INTEGER NOT NULL)"),db);
+    QSqlQuery create_table_b_requestheaders(QString("CREATE TABLE IF NOT EXISTS b_requestheaders (unique_id TEXT PRIMARY KEY,"
+                                                    "request_method_id INTEGER NOT NULL,"
+                                                    "uri_id INTEGER NOT NULL,"
+                                                    "http_version_id INTEGER DEFAULT NULL,"
+                                                    "host_id INTEGER DEFAULT NULL,"
+                                                    "connection_id INTEGER DEFAULT NULL,"
+                                                    "accept_id INTEGER DEFAULT NULL,"
+                                                    "user_agent_id INTEGER DEFAULT NULL,"
+                                                    "dnt_id INTEGER DEFAULT NULL,"
+                                                    "referrer_id INTEGER DEFAULT NULL,"
+                                                    "accept_encoding_id INTEGER DEFAULT NULL,"
+                                                    "accept_language_id INTEGER DEFAULT NULL,"
+                                                    "cookie_id INTEGER DEFAULT NULL,"
+                                                    "x_requested_with_id INTEGER DEFAULT NULL,"
+                                                    "content_type_id INTEGER DEFAULT NULL,"
+                                                    "content_length_id INTEGER DEFAULT NULL,"
+                                                    "proxy_connection_id INTEGER DEFAULT NULL,"
+                                                    "accept_charset_id INTEGER DEFAULT NULL,"
+                                                    "ua_cpu_id INTEGER DEFAULT NULL,"
+                                                    "x_forwarded_for_id INTEGER DEFAULT NULL,"
+                                                    "cache_control_id INTEGER DEFAULT NULL,"
+                                                    "via_id INTEGER DEFAULT NULL,"
+                                                    "if_modified_since_id INTEGER DEFAULT NULL,"
+                                                    "if_none_match_id INTEGER DEFAULT NULL,"
+                                                    "pragma_id INTEGER DEFAULT NULL)"),db);
     //c_requestbody
     //d_intendedresponseheaders
     //e_intendedresponsebody
@@ -368,14 +553,40 @@ bool AuditLogDatabase::createDatabase() {
     //j_reducedmultipartfilesinformation
     //k_matchedrules
 
-    // A
-    // TODO
+    // A - audit log header
     QSqlQuery create_table_a_source_ip("CREATE TABLE IF NOT EXISTS x_a_source_ip (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
     QSqlQuery create_table_a_source_port("CREATE TABLE IF NOT EXISTS x_a_source_port (id INTEGER DEFAULT 0 NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
     QSqlQuery create_table_a_destination_ip("CREATE TABLE IF NOT EXISTS x_a_destination_ip (id INTEGER DEFAULT 0 NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
     QSqlQuery create_table_a_destination_port("CREATE TABLE IF NOT EXISTS x_a_destination_port (id INTEGER DEFAULT 0 NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
 
+    // B - request headers
+    QSqlQuery create_table_b_request_method("CREATE TABLE IF NOT EXISTS x_b_request_method (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_uri("CREATE TABLE IF NOT EXISTS x_b_uri (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_http_version("CREATE TABLE IF NOT EXISTS x_b_http_version (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_host("CREATE TABLE IF NOT EXISTS x_b_host (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_connection("CREATE TABLE IF NOT EXISTS x_b_connection (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_accept("CREATE TABLE IF NOT EXISTS x_b_accept (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_user_agent("CREATE TABLE IF NOT EXISTS x_b_user_agent (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_dnt("CREATE TABLE IF NOT EXISTS x_b_dnt (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_referrer("CREATE TABLE IF NOT EXISTS x_b_referrer (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_accept_encoding("CREATE TABLE IF NOT EXISTS x_b_accept_encoding (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_accept_language("CREATE TABLE IF NOT EXISTS x_b_accept_language (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_cookie("CREATE TABLE IF NOT EXISTS x_b_cookie (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_x_requested_with("CREATE TABLE IF NOT EXISTS x_b_x_requested_with (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_content_type("CREATE TABLE IF NOT EXISTS x_b_content_type (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_content_length("CREATE TABLE IF NOT EXISTS x_b_content_length (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_proxy_connection("CREATE TABLE IF NOT EXISTS x_b_proxy_connection (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_accept_charset("CREATE TABLE IF NOT EXISTS x_b_accept_charset (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_ua_cpu("CREATE TABLE IF NOT EXISTS x_b_ua_cpu (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_x_forwarded_for("CREATE TABLE IF NOT EXISTS x_b_x_forwarded_for (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_cache_control("CREATE TABLE IF NOT EXISTS x_b_cache_control (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_via("CREATE TABLE IF NOT EXISTS x_b_via (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_if_modified_since("CREATE TABLE IF NOT EXISTS x_b_if_modified_since (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_if_none_match("CREATE TABLE IF NOT EXISTS x_b_if_none_match (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_b_pragma("CREATE TABLE IF NOT EXISTS x_b_pragma (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+
     try {
+        // main audit log sections
         if( !create_table_main.exec() )
             throw "Error creating table main";
         if ( !create_table_a_auditlogheader.exec() )
@@ -385,6 +596,7 @@ bool AuditLogDatabase::createDatabase() {
         if ( !create_table_f_responseheaders.exec() )
             throw "Error creating table f_responseheaders";
 
+        // A - audit log header
         if ( !create_table_a_source_ip.exec() )
             throw QString("Error creating table x_a_source_ip, error is (" + create_table_a_source_ip.lastError().databaseText() + ", " + create_table_a_source_ip.lastError().driverText() + ")");
         if ( !create_table_a_source_port.exec() )
@@ -393,6 +605,58 @@ bool AuditLogDatabase::createDatabase() {
             throw QString("Error creating table x_a_destination_ip, error is (" + create_table_a_destination_ip.lastError().databaseText() + ", " + create_table_a_destination_ip.lastError().driverText() + ")");
         if ( !create_table_a_destination_port.exec() )
             throw QString("Error creating table x_a_destination_port, error is (" + create_table_a_destination_port.lastError().databaseText() + ", " + create_table_a_destination_port.lastError().driverText() + ")");
+
+        // B - request headers
+        if ( !create_table_b_request_method.exec() )
+            throw QString("Error creating table x_b_request_method, error is (" + create_table_b_request_method.lastError().databaseText() + ", " + create_table_b_request_method.lastError().driverText() + ")");
+        if ( !create_table_b_uri.exec() )
+            throw QString("Error creating table x_b_uri, error is (" + create_table_b_uri.lastError().databaseText() + ", " + create_table_b_uri.lastError().driverText() + ")");
+        if ( !create_table_b_http_version.exec() )
+            throw QString("Error creating table x_b_http_version, error is (" + create_table_b_http_version.lastError().databaseText() + ", " + create_table_b_http_version.lastError().driverText() + ")");
+        if ( !create_table_b_host.exec() )
+            throw QString("Error creating table x_b_host, error is (" + create_table_b_host.lastError().databaseText() + ", " + create_table_b_host.lastError().driverText() + ")");
+        if ( !create_table_b_connection.exec() )
+            throw QString("Error creating table x_b_connection, error is (" + create_table_b_connection.lastError().databaseText() + ", " + create_table_b_connection.lastError().driverText() + ")");
+        if ( !create_table_b_accept.exec() )
+            throw QString("Error creating table x_b_accept, error is (" + create_table_b_accept.lastError().databaseText() + ", " + create_table_b_accept.lastError().driverText() + ")");
+        if ( !create_table_b_user_agent.exec() )
+            throw QString("Error creating table x_b_user_agent, error is (" + create_table_b_user_agent.lastError().databaseText() + ", " + create_table_b_user_agent.lastError().driverText() + ")");
+        if ( !create_table_b_dnt.exec() )
+            throw QString("Error creating table x_b_dnt, error is (" + create_table_b_dnt.lastError().databaseText() + ", " + create_table_b_dnt.lastError().driverText() + ")");
+        if ( !create_table_b_referrer.exec() )
+            throw QString("Error creating table x_b_referrer, error is (" + create_table_b_referrer.lastError().databaseText() + ", " + create_table_b_referrer.lastError().driverText() + ")");
+        if ( !create_table_b_accept_encoding.exec() )
+            throw QString("Error creating table x_b_accept_encoding, error is (" + create_table_b_accept_encoding.lastError().databaseText() + ", " + create_table_b_accept_encoding.lastError().driverText() + ")");
+        if ( !create_table_b_accept_language.exec() )
+            throw QString("Error creating table x_b_accept_language, error is (" + create_table_b_accept_language.lastError().databaseText() + ", " + create_table_b_accept_language.lastError().driverText() + ")");
+        if ( !create_table_b_cookie.exec() )
+            throw QString("Error creating table x_b_cookie, error is (" + create_table_b_cookie.lastError().databaseText() + ", " + create_table_b_cookie.lastError().driverText() + ")");
+        if ( !create_table_b_x_requested_with.exec() )
+            throw QString("Error creating table x_b_x_requested_with, error is (" + create_table_b_x_requested_with.lastError().databaseText() + ", " + create_table_b_x_requested_with.lastError().driverText() + ")");
+        if ( !create_table_b_content_type.exec() )
+            throw QString("Error creating table x_b_content_type, error is (" + create_table_b_content_type.lastError().databaseText() + ", " + create_table_b_content_type.lastError().driverText() + ")");
+        if ( !create_table_b_content_length.exec() )
+            throw QString("Error creating table x_b_content_length, error is (" + create_table_b_content_length.lastError().databaseText() + ", " + create_table_b_content_length.lastError().driverText() + ")");
+        if ( !create_table_b_proxy_connection.exec() )
+            throw QString("Error creating table x_b_proxy_connection, error is (" + create_table_b_proxy_connection.lastError().databaseText() + ", " + create_table_b_proxy_connection.lastError().driverText() + ")");
+        if ( !create_table_b_accept_charset.exec() )
+            throw QString("Error creating table x_b_accept_charset, error is (" + create_table_b_accept_charset.lastError().databaseText() + ", " + create_table_b_accept_charset.lastError().driverText() + ")");
+        if ( !create_table_b_ua_cpu.exec() )
+            throw QString("Error creating table x_b_ua_cpu, error is (" + create_table_b_ua_cpu.lastError().databaseText() + ", " + create_table_b_ua_cpu.lastError().driverText() + ")");
+        if ( !create_table_b_x_forwarded_for.exec() )
+            throw QString("Error creating table x_b_x_forwarded_for, error is (" + create_table_b_x_forwarded_for.lastError().databaseText() + ", " + create_table_b_x_forwarded_for.lastError().driverText() + ")");
+        if ( !create_table_b_cache_control.exec() )
+            throw QString("Error creating table x_b_cache_control, error is (" + create_table_b_cache_control.lastError().databaseText() + ", " + create_table_b_cache_control.lastError().driverText() + ")");
+        if ( !create_table_b_via.exec() )
+            throw QString("Error creating table x_b_via, error is (" + create_table_b_via.lastError().databaseText() + ", " + create_table_b_via.lastError().driverText() + ")");
+        if ( !create_table_b_if_modified_since.exec() )
+            throw QString("Error creating table x_b_if_modified_since, error is (" + create_table_b_if_modified_since.lastError().databaseText() + ", " + create_table_b_if_modified_since.lastError().driverText() + ")");
+        if ( !create_table_b_if_none_match.exec() )
+            throw QString("Error creating table x_b_if_none_match, error is (" + create_table_b_if_none_match.lastError().databaseText() + ", " + create_table_b_if_none_match.lastError().driverText() + ")");
+        if ( !create_table_b_pragma.exec() )
+            throw QString("Error creating table x_b_pragma, error is (" + create_table_b_pragma.lastError().databaseText() + ", " + create_table_b_pragma.lastError().driverText() + ")");
+
+        // F - response headers
 
     } catch (QString & msg) {
         qCritical() << msg;

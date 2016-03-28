@@ -35,12 +35,17 @@ void AuditLogRecord::importAuditLogHeader(QString A) {
     //qDebug().noquote() << A;
 
     //auditLogHeader = A;
+    // TODO - use qsharedpointer instead of normal pointer for this?
+    //delete auditLogHeader;
     auditLogHeader = new AuditLogHeader(A);
 }
 
 void AuditLogRecord::importRequestHeaders(QString B) {
     //qDebug() << "B";
-    requestHeaders = B;
+
+    //requestHeaders = B;
+    //delete requestHeaders;
+    requestHeaders = new RequestHeaders(B);
 }
 
 void AuditLogRecord::importRequestBody(QString C) {
@@ -92,7 +97,7 @@ void AuditLogRecord::clear() {
     //qDebug() << "clearing record";
 
     //auditLogHeader.clear(); // A
-    requestHeaders.clear(); // B
+    //requestHeaders.clear(); // B
     requestBody.clear(); // C
     intendedResponseHeaders.clear(); // D
     intendedResponseBody.clear(); // E
@@ -104,6 +109,7 @@ void AuditLogRecord::clear() {
     matchedRules.clear(); // K
 
     auditLogHeader->clear(); // A
+    requestHeaders->clear(); // B
 }
 
 
@@ -183,4 +189,179 @@ string AuditLogHeader::apachetimeToUnixtime(const string &timestamp) {
     stream << t;
     stream >> retval;
     return retval;
+}
+
+// ============== REQUEST HEADERS ================
+
+RequestHeaders::RequestHeaders (QString data) {
+    completeString = data;
+
+    QRegularExpression B_regex("^(\\w+)\\s(.*)\\s(HTTP\\/\\d\\.\\d)$",QRegularExpression::MultilineOption); // 1st match is request method, 2nd match is URI, 3rd match is HTTP version
+    //QRegularExpression B_regex_host("^Host:(.*?)$");
+    QRegularExpression B_regex_host("^Host:\\s*(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_connection("^Connection:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_accept("^Accept:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_useragent("^User-Agent:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_DNT("^DNT:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_referrer("^Referer:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_accept_encoding("^Accept-Encoding:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_accept_language("^Accept-Language:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_cookie("^Cookie:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_x_requested_with("^X-Requested-With:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_content_type("^Content-Type:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_content_length("^Content-Length:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_proxy_connection("^Proxy-Connection:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_accept_charset("^Accept-Charset:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_UA_CPU("^UA-CPU:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_x_forwarded_for("^X-Forwarded-For:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_cache_control("^Cache-Control:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_via("^Via:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_if_modified_since("^If-Modified-Since:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_if_none_match("^If-None-Match:(.*?)$",QRegularExpression::MultilineOption);
+    QRegularExpression B_regex_pragma("^Pragma:(.*?)$",QRegularExpression::MultilineOption);
+
+    QRegularExpressionMatch matches = B_regex.match(data);
+    if (matches.hasMatch()) {
+
+        requestMethod = matches.captured(1);
+        uri = matches.captured(2);
+        httpVersion = matches.captured(3);
+
+    }
+
+    matches = B_regex_host.match(data);
+    if(matches.hasMatch()) {
+        host = matches.captured(1);
+    }
+
+    matches = B_regex_connection.match(data);
+    if(matches.hasMatch()) {
+        connection = matches.captured(1);
+    }
+
+    matches = B_regex_accept.match(data);
+    if(matches.hasMatch()) {
+        accept = matches.captured(1);
+    }
+
+    matches = B_regex_useragent.match(data);
+    if(matches.hasMatch()) {
+        userAgent = matches.captured(1);
+    }
+
+    matches = B_regex_DNT.match(data);
+    if(matches.hasMatch()) {
+        dnt = matches.captured(1);
+    }
+
+    matches = B_regex_referrer.match(data);
+    if(matches.hasMatch()) {
+        referrer = matches.captured(1);
+    }
+
+    matches = B_regex_accept_encoding.match(data);
+    if(matches.hasMatch()) {
+        acceptEncoding = matches.captured(1);
+    }
+
+    matches = B_regex_accept_language.match(data);
+    if(matches.hasMatch()) {
+        acceptLanguage = matches.captured(1);
+    }
+
+    matches = B_regex_cookie.match(data);
+    if(matches.hasMatch()) {
+        cookie = matches.captured(1);
+    }
+
+    matches = B_regex_x_requested_with.match(data);
+    if(matches.hasMatch()) {
+        xRequestedWith = matches.captured(1);
+    }
+
+    matches = B_regex_content_type.match(data);
+    if(matches.hasMatch()) {
+        contentType = matches.captured(1);
+    }
+
+    matches = B_regex_content_length.match(data);
+    if(matches.hasMatch()) {
+        contentLength = matches.captured(1);
+    }
+
+    matches = B_regex_proxy_connection.match(data);
+    if(matches.hasMatch()) {
+        proxyConnection = matches.captured(1);
+    }
+
+    matches = B_regex_accept_charset.match(data);
+    if(matches.hasMatch()) {
+        acceptCharset = matches.captured(1);
+    }
+
+    matches = B_regex_UA_CPU.match(data);
+    if(matches.hasMatch()) {
+        userAgentCPU = matches.captured(1);
+    }
+
+    matches = B_regex_x_forwarded_for.match(data);
+    if(matches.hasMatch()) {
+        xForwardedFor = matches.captured(1);
+    }
+
+    matches = B_regex_cache_control.match(data);
+    if(matches.hasMatch()) {
+        cacheControl = matches.captured(1);
+    }
+
+    matches = B_regex_via.match(data);
+    if(matches.hasMatch()) {
+        via = matches.captured(1);
+    }
+
+    matches = B_regex_if_modified_since.match(data);
+    if(matches.hasMatch()) {
+        ifModifiedSince = matches.captured(1);
+    }
+
+    matches = B_regex_if_none_match.match(data);
+    if(matches.hasMatch()) {
+        ifNoneMatch = matches.captured(1);
+    }
+
+    matches = B_regex_pragma.match(data);
+    if(matches.hasMatch()) {
+        pragma = matches.captured(1);
+    }
+
+}
+
+void RequestHeaders::clear() {
+
+    completeString.clear();
+
+    requestMethod.clear();
+    uri.clear();
+    httpVersion.clear();
+    host.clear();
+    connection.clear();
+    accept.clear();
+    userAgent.clear();
+    dnt.clear();
+    referrer.clear();
+    acceptEncoding.clear();
+    acceptLanguage.clear();
+    cookie.clear();
+    xRequestedWith.clear();
+    contentType.clear();
+    contentLength.clear();
+    proxyConnection.clear();
+    acceptCharset.clear();
+    userAgentCPU.clear();
+    xForwardedFor.clear();
+    cacheControl.clear();
+    via.clear();
+    ifModifiedSince.clear();
+    ifNoneMatch.clear();
+    pragma.clear();
 }
