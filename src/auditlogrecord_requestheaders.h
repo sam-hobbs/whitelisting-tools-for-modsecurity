@@ -16,13 +16,12 @@
     <http://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDITLOGRECORD_H
-#define AUDITLOGRECORD_H
+#ifndef REQUESTHEADERS_H
+#define REQUESTHEADERS_H
 
 // data structure to hold a single log record
 
 #include <QString>
-#include "auditlogrecord_auditlogheader.h"
 
 
 class RequestHeaders {
@@ -57,43 +56,5 @@ public:
     QString ifNoneMatch;
     QString pragma;
 };
-
-class AuditLogRecord {
-
-public:
-    void importAuditLogHeader(QString A);
-    void importRequestHeaders(QString B);
-    void importRequestBody(QString C);
-    void importIntendedResponseHeaders(QString D);
-    void importIntendedResponseBody(QString E);
-    void importResponseHeaders(QString F);
-    void importResponseBody(QString G);
-    void importAuditLogTrailer(QString H);
-    void importReducedMultipartRequestBody(QString I);
-    void importMultipartFilesInformation(QString J);
-    void importMatchedRules(QString K);
-
-    void clear();
-
-//    QString auditLogHeader; // A
-//    QString requestHeaders; // B
-    QString requestBody; // C
-    QString intendedResponseHeaders; // D
-    QString intendedResponseBody; // E
-    QString responseHeaders; // F
-    QString responseBody; // G
-    QString auditLogTrailer; // H
-    QString reducedMultipartRequestBody; // I
-    QString multipartFilesInformation; // J
-    QString matchedRules; // K
-
-
-    AuditLogHeader * auditLogHeader;
-    RequestHeaders * requestHeaders;
-
-    bool alreadyInDatabase = 0;
-
-};
-
 
 #endif
