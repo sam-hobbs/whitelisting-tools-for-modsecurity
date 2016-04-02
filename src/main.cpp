@@ -21,6 +21,7 @@
 #include <QDebug>
 
 #include "auditlogdatabase.h"
+#include "databaseconfig.h"
 
 int main (int argc , char **argv) {
     QCoreApplication app(argc, argv);
@@ -33,27 +34,36 @@ int main (int argc , char **argv) {
     parser.setApplicationDescription("A utility to read a ModSecurity audit log into a sqlite database file.");
     parser.addHelpOption();
     parser.addVersionOption();
-    parser.addPositionalArgument("logfile", QCoreApplication::translate("main","Log file to read"));
-    parser.addPositionalArgument("database", QCoreApplication::translate("main", "Database file to be created or written to"));
+    parser.addPositionalArgument("logfile", QCoreApplication::translate("main","Log file to read."));
+    parser.addPositionalArgument("database", QCoreApplication::translate("main", "Database file to be created or written to."));
+
+    QCommandLineOption databaseConfigurationOption(QStringList() << "c" << "dbconf",
+                                          QCoreApplication::translate("main", "database configuration file."),
+                                          QString("dbconf"));
+    parser.addOption(databaseConfigurationOption);
 
     QCommandLineOption showProgressOption(QStringList() << "p" << "progress",
                                           QCoreApplication::translate("main", "Show Progress during import."));
+    parser.addOption(showProgressOption);
 
     QCommandLineOption forceOption(QStringList() << "f" << "force",
-                                   QCoreApplication::translate("force", "Don't ask for confirmation on errors."));
+                                   QCoreApplication::translate("main", "Don't ask for confirmation on errors."));
+    parser.addOption(forceOption);
 
     QCommandLineOption debugOption(QStringList() << "d" << "debug",
-                                   QCoreApplication::translate("debug", "Print debugging messages."));
+                                   QCoreApplication::translate("main", "Print debugging messages."));
+    parser.addOption(debugOption);
 
-
-    parser.addOptions({
-        {{"p", "progress"},
-            QCoreApplication::translate("main", "Progress during import")},
-        {{"f", "force"},
-            QCoreApplication::translate("main", "Don't ask for confirmation on errors")},
-        {{"d", "debug"},
-            QCoreApplication::translate("main", "Print debugging messages")},
-    });
+//    parser.addOptions({
+//        {{"c", "database_configuration"},
+//            QCoreApplication::translate("main", "Database configuration file")},
+//        {{"p", "progress"},
+//            QCoreApplication::translate("main", "Progress during import")},
+//        {{"f", "force"},
+//            QCoreApplication::translate("main", "Don't ask for confirmation on errors")},
+//        {{"d", "debug"},
+//            QCoreApplication::translate("main", "Print debugging messages")},
+//    });
 
     parser.process(app);
 
@@ -78,9 +88,14 @@ int main (int argc , char **argv) {
     bool showProgress = parser.isSet(showProgressOption);
     bool force = parser.isSet(forceOption);
     bool debug = parser.isSet(debugOption);
+    QString dbConfigFile = parser.value(databaseConfigurationOption);
+
+    if(debug) {qDebug().noquote() << QString("Database configuration file is: ") + dbConfigFile;}
 
     try {
-        AuditLogDatabase db(database, debug, showProgress);
+        DatabaseConfig databaseConfig(dbConfigFile, debug);
+
+        AuditLogDatabase db(database, databaseConfig, debug, showProgress);
 
         foreach (const QString &str, logfileList) {
             if( showProgress || debug ) {qDebug() << "Importing logfile " << str;}

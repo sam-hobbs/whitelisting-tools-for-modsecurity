@@ -16,33 +16,4 @@
     <http://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDITLOGDATABASE_H
-#define AUDITLOGDATABASE_H
-
-#include <QtSql>
-#include "databaseconfig.h"
-
-class AuditLogDatabase {
-public:
-    AuditLogDatabase(const QString database, DatabaseConfig config,  bool debug, bool progress);
-
-    void importLogFile(const QString logfile);   
-
-private:
-    bool createDatabase();
-
-    void getConnection();
-    void setFilePath();
-    bool beginTransaction();
-    bool endTransaction();
-
-    QString filepath;
-    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", 0);
-    bool isOpen = 0;
-    bool debug;
-    bool showProgress;
-
-    DatabaseConfig databaseConfig;
-};
-
-#endif
+#include "auditlogrecord_responseheaders.h"

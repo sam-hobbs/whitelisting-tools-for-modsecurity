@@ -20,8 +20,6 @@
 #define AUDITLOGHEADERS_H
 
 
-// data structure to hold a single log record
-
 #include <QString>
 
 

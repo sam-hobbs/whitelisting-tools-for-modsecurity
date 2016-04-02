@@ -19,8 +19,6 @@
 #ifndef REQUESTHEADERS_H
 #define REQUESTHEADERS_H
 
-// data structure to hold a single log record
-
 #include <QString>
 
 

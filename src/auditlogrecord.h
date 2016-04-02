@@ -23,40 +23,41 @@
 
 #include <QString>
 #include "auditlogrecord_auditlogheader.h"
+#include "auditlogrecord_requestheaders.h"
+#include "auditlogrecord_responseheaders.h"
 
+//class RequestHeaders {
+//public:
+//    RequestHeaders(QString data);
+//    void clear();
 
-class RequestHeaders {
-public:
-    RequestHeaders(QString data);
-    void clear();
+//    QString completeString;
 
-    QString completeString;
-
-    QString requestMethod;
-    QString uri;
-    QString httpVersion;
-    QString host;
-    QString connection;
-    QString accept;
-    QString userAgent;
-    QString dnt;
-    QString referrer;
-    QString acceptEncoding;
-    QString acceptLanguage;
-    QString cookie;
-    QString xRequestedWith;
-    QString contentType;
-    QString contentLength;
-    QString proxyConnection;
-    QString acceptCharset;
-    QString userAgentCPU;
-    QString xForwardedFor;
-    QString cacheControl;
-    QString via;
-    QString ifModifiedSince;
-    QString ifNoneMatch;
-    QString pragma;
-};
+//    QString requestMethod;
+//    QString uri;
+//    QString httpVersion;
+//    QString host;
+//    QString connection;
+//    QString accept;
+//    QString userAgent;
+//    QString dnt;
+//    QString referrer;
+//    QString acceptEncoding;
+//    QString acceptLanguage;
+//    QString cookie;
+//    QString xRequestedWith;
+//    QString contentType;
+//    QString contentLength;
+//    QString proxyConnection;
+//    QString acceptCharset;
+//    QString userAgentCPU;
+//    QString xForwardedFor;
+//    QString cacheControl;
+//    QString via;
+//    QString ifModifiedSince;
+//    QString ifNoneMatch;
+//    QString pragma;
+//};
 
 class AuditLogRecord {
 

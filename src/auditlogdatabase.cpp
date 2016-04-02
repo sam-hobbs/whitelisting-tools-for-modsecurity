@@ -21,17 +21,22 @@
 
 #include "auditlogdatabase.h"
 #include "auditlogrecord.h"
+#include "databaseconfig.h"
 
-AuditLogDatabase::AuditLogDatabase(const QString database, bool debugging, bool progress) {
+AuditLogDatabase::AuditLogDatabase(const QString database, DatabaseConfig config, bool debugging, bool progress) : databaseConfig(config) {
     filepath = database;
     debug = debugging;
     showProgress = progress;
     db.setDatabaseName(filepath);
 
+    //databaseConfig = config;
+
     if (!createDatabase()) {
         qCritical() << "couldn't create database";
         throw "Couldn't create database";
     }
+
+
 
 }
 
@@ -80,7 +85,7 @@ void AuditLogDatabase::importLogFile(const QString logfile) {
 
         // variables used to display progress while processing records
         // http://stackoverflow.com/questions/14539867/how-to-display-a-progress-indicator-in-pure-c-c-cout-printf
-        int recordNumber = 0;
+        int headerNumber = 0;
         float progress = 0.0;
         int barWidth = 70;
 
@@ -233,20 +238,20 @@ void AuditLogDatabase::importLogFile(const QString logfile) {
         // data structure to hold the current record's data, will be cleared after data has been bound in Z
         AuditLogRecord record;
 
-        while ( recordNumber < headerlines.size() ) {
+        while ( headerNumber < headerlines.size() ) {
 
-            if(debug) {qDebug() << "processing record number " << recordNumber + 1 << " of " << headerlines.size();}
+            if(debug) {qDebug() << "processing header number " << headerNumber + 1 << " of " << headerlines.size();}
 
             // data for extracting this record
-            char letter = headerlines.at(recordNumber).second.toUtf8().constData()[11];
+            char letter = headerlines.at(headerNumber).second.toUtf8().constData()[11];
 
             int currentLine = 0;
-            int startline = headerlines.at(recordNumber).first;
+            int startline = headerlines.at(headerNumber).first;
             int endline;
-            if ( recordNumber == headerlines.size() - 1 ) {
+            if ( headerNumber == headerlines.size() - 1 ) {
                 endline = line; // end of file from header extraction routine
             } else {
-                endline = headerlines.at(recordNumber+1).first;
+                endline = headerlines.at(headerNumber+1).first;
             }
             QString headerData;
 
@@ -462,7 +467,7 @@ void AuditLogDatabase::importLogFile(const QString logfile) {
 
             // update the progress indicator
             if (showProgress && !debug) {
-                progress = float(recordNumber) / float(headerlines.size() - 1);
+                progress = float(headerNumber) / float(headerlines.size() - 1);
 
                 std::cout << "[";
                 int pos = barWidth * progress;
@@ -475,7 +480,7 @@ void AuditLogDatabase::importLogFile(const QString logfile) {
                 std::cout.flush();
             }
 
-            recordNumber++;
+            headerNumber++;
         }
         if(showProgress) {std::cout << std::endl;}
     } catch (QString & msg) {
