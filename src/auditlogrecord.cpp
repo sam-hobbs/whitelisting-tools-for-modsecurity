@@ -23,6 +23,11 @@
 #include <QRegularExpressionMatch>
 
 
+AuditLogRecord::AuditLogRecord(DatabaseConfig *config) : responseHeaders(config), databaseConfig(config) {
+
+}
+
+
 void AuditLogRecord::importAuditLogHeader(QString A) {
     //qDebug() << "A";
     //qDebug().noquote() << A;
@@ -58,7 +63,9 @@ void AuditLogRecord::importIntendedResponseBody(QString E) {
 
 void AuditLogRecord::importResponseHeaders(QString F) {
     //qDebug() << "F";
-    responseHeaders = F;
+    //responseHeaders = F;
+    //responseHeaders = new ResponseHeaders(F,databaseConfig);
+    responseHeaders.extract(F);
 }
 
 void AuditLogRecord::importResponseBody(QString G) {
@@ -94,7 +101,7 @@ void AuditLogRecord::clear() {
     requestBody.clear(); // C
     intendedResponseHeaders.clear(); // D
     intendedResponseBody.clear(); // E
-    responseHeaders.clear(); // F
+    //responseHeaders.clear(); // F
     responseBody.clear(); // G
     auditLogTrailer.clear(); // H
     reducedMultipartRequestBody.clear(); // I
@@ -103,6 +110,8 @@ void AuditLogRecord::clear() {
 
     auditLogHeader->clear(); // A
     requestHeaders->clear(); // B
+    //responseHeaders->clear(); // F
+    responseHeaders.clear(); // F
 
     alreadyInDatabase = 0;
 }

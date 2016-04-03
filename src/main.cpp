@@ -46,24 +46,13 @@ int main (int argc , char **argv) {
                                           QCoreApplication::translate("main", "Show Progress during import."));
     parser.addOption(showProgressOption);
 
-    QCommandLineOption forceOption(QStringList() << "f" << "force",
-                                   QCoreApplication::translate("main", "Don't ask for confirmation on errors."));
-    parser.addOption(forceOption);
+//    QCommandLineOption forceOption(QStringList() << "f" << "force",
+//                                   QCoreApplication::translate("main", "Don't ask for confirmation on errors."));
+//    parser.addOption(forceOption);
 
     QCommandLineOption debugOption(QStringList() << "d" << "debug",
                                    QCoreApplication::translate("main", "Print debugging messages."));
     parser.addOption(debugOption);
-
-//    parser.addOptions({
-//        {{"c", "database_configuration"},
-//            QCoreApplication::translate("main", "Database configuration file")},
-//        {{"p", "progress"},
-//            QCoreApplication::translate("main", "Progress during import")},
-//        {{"f", "force"},
-//            QCoreApplication::translate("main", "Don't ask for confirmation on errors")},
-//        {{"d", "debug"},
-//            QCoreApplication::translate("main", "Print debugging messages")},
-//    });
 
     parser.process(app);
 
@@ -86,7 +75,7 @@ int main (int argc , char **argv) {
     }
 
     bool showProgress = parser.isSet(showProgressOption);
-    bool force = parser.isSet(forceOption);
+//    bool force = parser.isSet(forceOption);
     bool debug = parser.isSet(debugOption);
     QString dbConfigFile = parser.value(databaseConfigurationOption);
 

@@ -24,19 +24,14 @@
 #include <QVector>
 #include <QRegularExpression>
 
-struct AuditLogConfigEntry {
-    QString name;
-    QString regexText;
-    QRegularExpression regex;
-};
-
+#include "userdefinedheaderpart.h"
 
 class DatabaseConfig {
 public:
     DatabaseConfig(QString filepath = QString(""), bool debug = 0);
 
-    QVector<AuditLogConfigEntry> requestHeaders;
-    QVector<AuditLogConfigEntry> responseHeaders;
+    QVector<UserDefinedHeaderPart> requestHeaders;
+    QVector<UserDefinedHeaderPart> responseHeaders;
 
 };
 

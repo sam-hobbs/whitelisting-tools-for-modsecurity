@@ -21,6 +21,7 @@
 
 #include <QString>
 
+// section B
 
 class RequestHeaders {
 public:

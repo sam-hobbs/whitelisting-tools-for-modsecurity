@@ -89,8 +89,9 @@ void AuditLogDatabase::importLogFile(const QString logfile) {
         float progress = 0.0;
         int barWidth = 70;
 
+
         // regular expressions for capturing data
-        QRegularExpression audit_log_header_regex("^\\[(.*)\\]\\s(.{24})\\s(\\d+\\.\\d+\\.\\d+\\.\\d+|::1)\\s(\\d+)\\s(\\d+\\.\\d+\\.\\d+\\.\\d+|::1)\\s(\\d+).*");
+        //QRegularExpression audit_log_header_regex("^\\[(.*)\\]\\s(.{24})\\s(\\d+\\.\\d+\\.\\d+\\.\\d+|::1)\\s(\\d+)\\s(\\d+\\.\\d+\\.\\d+\\.\\d+|::1)\\s(\\d+).*");
 
 
         // queries for inserting data into main table
@@ -235,8 +236,81 @@ void AuditLogDatabase::importLogFile(const QString logfile) {
         if(!insert_b_pragma.prepare("INSERT OR IGNORE INTO x_b_pragma (data) VALUES (:data)"))
             throw "failed to prepare insert_b_pragma statement";
 
+
+
+        // part F - response headers
+
+        QSqlQuery insert_f_http_version(db);
+        QSqlQuery insert_f_http_code(db);
+        QSqlQuery insert_f_http_status_text(db);
+
+        if(!insert_f_http_version.prepare("INSERT OR IGNORE INTO x_f_http_version (data) VALUES (:data)"))
+            throw "failed to prepare insert_f_http_version statement";
+        if(!insert_f_http_code.prepare("INSERT OR IGNORE INTO x_f_http_code (data) VALUES (:data)"))
+            throw "failed to prepare insert_f_http_code statement";
+        if(!insert_f_http_status_text.prepare("INSERT OR IGNORE INTO x_f_http_status_text (data) VALUES (:data)"))
+            throw "failed to prepare insert_f_http_code_description statement";
+
+        // prepare queries
+        for (int i = 0; i < databaseConfig.responseHeaders.size(); ++i) {
+            //databaseConfig.responseHeaders[i].query = QSqlQuery(db);
+            QString queryString( QString("INSERT OR IGNORE INTO x_f_") + databaseConfig.responseHeaders.at(i).name +  QString(" (data) VALUES (:data)"));
+            if (!databaseConfig.responseHeaders[i].query.prepare(queryString))
+                throw QString("Failed to prepare statement for inserting " + databaseConfig.responseHeaders.at(i).name + " in part F (response headers), error is " + databaseConfig.responseHeaders.at(i).query.lastError().databaseText() + ", " + databaseConfig.responseHeaders.at(i).query.lastError().driverText());
+        }
+
+
+
+
+
+        // generate a query for inserting data into table F using hard coded members (always present) and user supplied header parts
+        // INSERT INTO b_requestheaders (unique_id, request_method_id, uri_id, http_version_id, user_defined_id ...)
+        // VALUES ( :unique_id,
+        // (SELECT id FROM x_b_request_method WHERE data = :request_method),
+        // (SELECT id FROM x_b_uri WHERE data = :uri),
+        // (SELECT id FROM x_b_http_version WHERE data = :http_version),
+        // (SELECT id FROM x_b_user_defined WHERE data = :user_defined)
+        // )
+
+
+        // start of query string is known, contains hard coded members
+        QString insert_table_f_responseheaders_string("INSERT INTO f_responseheaders (unique_id, http_version_id, http_status_code_id, http_status_text_id");
+
+        // now add each user defined part in the table name list of the query string
+        for (int i = 0; i < databaseConfig.responseHeaders.size(); ++i) {
+            insert_table_f_responseheaders_string.append(QString(", ") + databaseConfig.responseHeaders.at(i).name + QString("_id"));
+        }
+
+        // values
+        insert_table_f_responseheaders_string.append(") VALUES (:unique_id, (SELECT id FROM x_f_http_version WHERE data = :http_version), (SELECT id FROM x_f_http_code WHERE data = :http_code), (SELECT id FROM x_f_http_status_text WHERE data = :http_code_description)");
+
+
+        // now add each user defined part in the value list of the query string
+        for (int i = 0; i < databaseConfig.responseHeaders.size(); ++i) {
+            insert_table_f_responseheaders_string.append(QString(", (SELECT id FROM x_f_") + databaseConfig.responseHeaders.at(i).name + QString(" WHERE data =:") + databaseConfig.responseHeaders.at(i).name + QString(")") );
+        }
+
+        // close bracket
+        insert_table_f_responseheaders_string.append(")");
+        //qDebug() << insert_table_f_responseheaders_string;
+
+        // create the query using the string
+        QSqlQuery insert_table_f_responseheaders(db);
+        if (!insert_table_f_responseheaders.prepare(insert_table_f_responseheaders_string))
+            throw QString("failed to prepare insert_table_f_responseheaders statement, error was ( ") + insert_table_f_responseheaders.lastError().databaseText() + ", " + insert_table_f_responseheaders.lastError().driverText() + " )";
+
+
+
+
+
+
+
+        // start a transaction
+        if (!db.transaction())
+            throw QString("Failed to start a transaction");
+
         // data structure to hold the current record's data, will be cleared after data has been bound in Z
-        AuditLogRecord record;
+        AuditLogRecord record(&databaseConfig);
 
         while ( headerNumber < headerlines.size() ) {
 
@@ -312,7 +386,9 @@ void AuditLogDatabase::importLogFile(const QString logfile) {
                         insert_main.bindValue(":c_requestbody", record.requestBody);
                         insert_main.bindValue(":d_intendedresponseheaders", record.intendedResponseHeaders);
                         insert_main.bindValue(":e_intendedresponsebody", record.intendedResponseBody);
-                        insert_main.bindValue(":f_responseheaders", record.responseHeaders);
+                        //insert_main.bindValue(":f_responseheaders", record.responseHeaders);
+                        //insert_main.bindValue(":f_responseheaders", record.responseHeaders->completeString);
+                        insert_main.bindValue(":f_responseheaders", record.responseHeaders.completeString);
                         insert_main.bindValue(":g_responsebody", record.responseBody);
                         insert_main.bindValue(":h_auditlogtrailer", record.auditLogTrailer);
                         insert_main.bindValue(":i_reducedmultipartrequestbody", record.reducedMultipartRequestBody);
@@ -451,6 +527,40 @@ void AuditLogDatabase::importLogFile(const QString logfile) {
                                 if(showProgress) qWarning().noquote() << "";
                                 qWarning() << "Warning: request headers could not be inserted, error is (" << insert_request_headers.lastError().databaseText() +  ", " + insert_request_headers.lastError().driverText() + ")";
                             }
+
+                            // bind part F
+                            // bind the hard coded id-value tables
+                            insert_f_http_version.bindValue(":data",record.responseHeaders.httpVersion);
+                            insert_f_http_code.bindValue(":data",record.responseHeaders.httpCode);
+                            insert_f_http_status_text.bindValue(":data",record.responseHeaders.httpCodeDescription);
+
+                            // bind data to the user defined value tables
+                            for (int i = 0; i < databaseConfig.responseHeaders.size(); ++i) {
+                                databaseConfig.responseHeaders[i].query.bindValue(":" + databaseConfig.responseHeaders.at(i).name, databaseConfig.responseHeaders.at(i).matchedData);
+                            }
+
+                            // bind value to table f_responseheaders
+                            insert_table_f_responseheaders.bindValue(":unique_id",record.auditLogHeader->uniqueID);
+                            for (int i = 0; i < databaseConfig.responseHeaders.size(); ++i) {
+                                insert_table_f_responseheaders.bindValue(QString(":") + databaseConfig.responseHeaders.at(i).name, databaseConfig.responseHeaders.at(i).matchedData);
+                            }
+
+
+                            // exec part F
+                            insert_f_http_version.exec();
+                            insert_f_http_code.exec();
+                            insert_f_http_status_text.exec();
+
+                            for (int i = 0; i < databaseConfig.responseHeaders.size(); ++i) {
+                                if (!databaseConfig.responseHeaders[i].query.exec())
+                                    throw QString("Failed to execute statement for inserting " + databaseConfig.responseHeaders.at(i).name + " in part F (response headers), error is " + databaseConfig.responseHeaders.at(i).query.lastError().databaseText() + ", " + databaseConfig.responseHeaders.at(i).query.lastError().driverText());
+                            }
+
+                            if (!insert_table_f_responseheaders.exec()) {
+                                if(showProgress) qWarning().noquote() << "";
+                                qWarning() << "Warning: audit log header could not be inserted, error is (" << insert_table_f_responseheaders.lastError().databaseText() +  ", " + insert_table_f_responseheaders.lastError().driverText() + ")";
+                            }
+
                         }
                         // clear the record and start again
                         record.clear();
@@ -482,6 +592,11 @@ void AuditLogDatabase::importLogFile(const QString logfile) {
 
             headerNumber++;
         }
+
+        // commit the transaction
+        if( !db.commit() )
+            throw QString("Failed to commit transaction");
+
         if(showProgress) {std::cout << std::endl;}
     } catch (QString & msg) {
         qCritical().noquote() << "error importing log file: " + msg;
@@ -521,7 +636,9 @@ bool AuditLogDatabase::createDatabase() {
         getConnection();
     }
 
-
+    // start a transaction
+    if ( !db.transaction() )
+        throw QString("Couldn't start a transaction during database creation");
 
 
     // generate sql queries for creating each table
@@ -557,7 +674,7 @@ bool AuditLogDatabase::createDatabase() {
     //c_requestbody
     //d_intendedresponseheaders
     //e_intendedresponsebody
-    QSqlQuery create_table_f_responseheaders(QString("CREATE TABLE IF NOT EXISTS f_responseheaders (unique_id TEXT PRIMARY KEY,    http_version_id INTEGER DEFAULT NULL,  http_status_code_id INTEGER DEFAULT NULL, http_status_text_id INTEGER DEFAULT NULL, x_powered_by_id INTEGER DEFAULT NULL, expires_id INTEGER DEFAULT NULL, cache_control_id INTEGER DEFAULT NULL, pragma_id INTEGER DEFAULT NULL, vary_id INTEGER DEFAULT NULL, content_encoding_id INTEGER DEFAULT NULL, content_length_id INTEGER DEFAULT NULL, connection_id INTEGER DEFAULT NULL, content_type_id INTEGER DEFAULT NULL, status_id INTEGER DEFAULT NULL, keep_alive_id INTEGER DEFAULT NULL)"),db);
+    //QSqlQuery create_table_f_responseheaders(QString("CREATE TABLE IF NOT EXISTS f_responseheaders (unique_id TEXT PRIMARY KEY,    http_version_id INTEGER DEFAULT NULL,  http_status_code_id INTEGER DEFAULT NULL, http_status_text_id INTEGER DEFAULT NULL, x_powered_by_id INTEGER DEFAULT NULL, expires_id INTEGER DEFAULT NULL, cache_control_id INTEGER DEFAULT NULL, pragma_id INTEGER DEFAULT NULL, vary_id INTEGER DEFAULT NULL, content_encoding_id INTEGER DEFAULT NULL, content_length_id INTEGER DEFAULT NULL, connection_id INTEGER DEFAULT NULL, content_type_id INTEGER DEFAULT NULL, status_id INTEGER DEFAULT NULL, keep_alive_id INTEGER DEFAULT NULL)"),db);
     //g_responsebody
     //h_auditlogtrailer
     //i_reducedmultipartrequestbody
@@ -595,6 +712,46 @@ bool AuditLogDatabase::createDatabase() {
     QSqlQuery create_table_b_if_modified_since("CREATE TABLE IF NOT EXISTS x_b_if_modified_since (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
     QSqlQuery create_table_b_if_none_match("CREATE TABLE IF NOT EXISTS x_b_if_none_match (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
     QSqlQuery create_table_b_pragma("CREATE TABLE IF NOT EXISTS x_b_pragma (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+
+    // F - response headers
+    QSqlQuery create_table_f_http_version("CREATE TABLE IF NOT EXISTS x_f_http_version (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_f_http_code("CREATE TABLE IF NOT EXISTS x_f_http_code (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+    QSqlQuery create_table_f_http_status_text("CREATE TABLE IF NOT EXISTS x_f_http_status_text (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)",db);
+
+
+
+
+
+
+    // generate a query for creating table F using hard coded members (always present) and user supplied header parts
+    // old query below:
+    // QSqlQuery create_table_f_responseheaders(QString("CREATE TABLE IF NOT EXISTS f_responseheaders (unique_id TEXT PRIMARY KEY,    http_version_id INTEGER DEFAULT NULL,  http_status_code_id INTEGER DEFAULT NULL, http_status_text_id INTEGER DEFAULT NULL, x_powered_by_id INTEGER DEFAULT NULL, expires_id INTEGER DEFAULT NULL, cache_control_id INTEGER DEFAULT NULL, pragma_id INTEGER DEFAULT NULL, vary_id INTEGER DEFAULT NULL, content_encoding_id INTEGER DEFAULT NULL, content_length_id INTEGER DEFAULT NULL, connection_id INTEGER DEFAULT NULL, content_type_id INTEGER DEFAULT NULL, status_id INTEGER DEFAULT NULL, keep_alive_id INTEGER DEFAULT NULL)"),db);
+
+    // start of query string is known, contains hard coded members
+    QString create_table_f_responseheaders_string("CREATE TABLE IF NOT EXISTS f_responseheaders (unique_id TEXT PRIMARY KEY, http_version_id INTEGER DEFAULT NULL, http_status_code_id INTEGER DEFAULT NULL, http_status_text_id INTEGER DEFAULT NULL");
+
+    // now add each user defined part to the query string
+    for (int i = 0; i < databaseConfig.responseHeaders.size(); ++i) {
+        create_table_f_responseheaders_string.append(QString(", ") + databaseConfig.responseHeaders.at(i).name + QString("_id INTEGER DEFAULT NULL"));
+    }
+
+    // close the bracket
+    create_table_f_responseheaders_string.append(")");
+    //qDebug() << create_table_f_responseheaders_string;
+
+    // create the query using the string
+    QSqlQuery create_table_f_responseheaders(create_table_f_responseheaders_string,db);
+
+
+
+
+
+
+
+
+
+
+
 
     try {
         // main audit log sections
@@ -668,6 +825,29 @@ bool AuditLogDatabase::createDatabase() {
             throw QString("Error creating table x_b_pragma, error is (" + create_table_b_pragma.lastError().databaseText() + ", " + create_table_b_pragma.lastError().driverText() + ")");
 
         // F - response headers
+        // TODO - add table f_response_headers
+        if ( !create_table_f_http_version.exec() )
+            throw QString("Error creating table x_f_http_version, error is (" + create_table_f_http_version.lastError().databaseText() + ", " + create_table_f_http_version.lastError().driverText() + ")");
+
+        if ( !create_table_f_http_code.exec() )
+            throw QString("Error creating table x_f_http_code, error is (" + create_table_f_http_code.lastError().databaseText() + ", " + create_table_f_http_code.lastError().driverText() + ")");
+
+        if ( !create_table_f_http_status_text.exec() )
+            throw QString("Error creating table x_f_http_status_text, error is (" + create_table_f_http_status_text.lastError().databaseText() + ", " + create_table_f_http_status_text.lastError().driverText() + ")");
+
+
+
+        // individual value tables in part F
+        for (int i = 0; i < databaseConfig.responseHeaders.size(); ++i) {
+            // default-initialised query in databaseConfig is not using this database
+            databaseConfig.responseHeaders[i].query = QSqlQuery(db);
+
+            // construct the query string
+            QString queryString( QString("CREATE TABLE IF NOT EXISTS x_f_") + databaseConfig.responseHeaders.at(i).name +  QString(" (id INTEGER NOT NULL PRIMARY KEY, data TEXT UNIQUE NOT NULL)"));
+
+            if (!databaseConfig.responseHeaders[i].query.exec(queryString))
+                throw QString("Failed to create table " + databaseConfig.responseHeaders.at(i).name + " in part F (response headers), error is " + databaseConfig.responseHeaders.at(i).query.lastError().databaseText() + ", " + databaseConfig.responseHeaders.at(i).query.lastError().driverText());
+        }
 
     } catch (QString & msg) {
         qCritical() << msg;
@@ -680,5 +860,10 @@ bool AuditLogDatabase::createDatabase() {
         qCritical() << "Error of unknown type creating database tables";
         throw;
     }
+
+    // commit the transaction
+    if ( !db.commit() )
+        throw QString("Couldn't commit transaction during database creation");
+
     return 1;
 }

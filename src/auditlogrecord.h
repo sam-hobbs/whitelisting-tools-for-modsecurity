@@ -19,49 +19,20 @@
 #ifndef AUDITLOGRECORD_H
 #define AUDITLOGRECORD_H
 
-// data structure to hold a single log record
+
 
 #include <QString>
 #include "auditlogrecord_auditlogheader.h"
 #include "auditlogrecord_requestheaders.h"
 #include "auditlogrecord_responseheaders.h"
 
-//class RequestHeaders {
-//public:
-//    RequestHeaders(QString data);
-//    void clear();
-
-//    QString completeString;
-
-//    QString requestMethod;
-//    QString uri;
-//    QString httpVersion;
-//    QString host;
-//    QString connection;
-//    QString accept;
-//    QString userAgent;
-//    QString dnt;
-//    QString referrer;
-//    QString acceptEncoding;
-//    QString acceptLanguage;
-//    QString cookie;
-//    QString xRequestedWith;
-//    QString contentType;
-//    QString contentLength;
-//    QString proxyConnection;
-//    QString acceptCharset;
-//    QString userAgentCPU;
-//    QString xForwardedFor;
-//    QString cacheControl;
-//    QString via;
-//    QString ifModifiedSince;
-//    QString ifNoneMatch;
-//    QString pragma;
-//};
+// data structure to hold a single log record
 
 class AuditLogRecord {
 
 public:
+    AuditLogRecord(DatabaseConfig *config);
+
     void importAuditLogHeader(QString A);
     void importRequestHeaders(QString B);
     void importRequestBody(QString C);
@@ -81,7 +52,7 @@ public:
     QString requestBody; // C
     QString intendedResponseHeaders; // D
     QString intendedResponseBody; // E
-    QString responseHeaders; // F
+    //QString responseHeaders; // F
     QString responseBody; // G
     QString auditLogTrailer; // H
     QString reducedMultipartRequestBody; // I
@@ -91,8 +62,11 @@ public:
 
     AuditLogHeader * auditLogHeader;
     RequestHeaders * requestHeaders;
+    ResponseHeaders responseHeaders;
 
     bool alreadyInDatabase = 0;
+
+    DatabaseConfig *databaseConfig;
 
 };
 

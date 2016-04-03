@@ -16,32 +16,25 @@
     <http://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDITLOGHEADERS_H
-#define AUDITLOGHEADERS_H
-
+#ifndef USERDEFINEDHEADERPART_H
+#define USERDEFINEDHEADERPART_H
 
 #include <QString>
+#include <QRegularExpression>
+#include <QSqlQuery>
 
-// section A
-
-class AuditLogHeader {
+class UserDefinedHeaderPart {
 public:
-    AuditLogHeader(QString data);
 
-    void clear();
+    UserDefinedHeaderPart() = default;
+    UserDefinedHeaderPart(QString name, QString regexString);
 
-    QString completeString;
+    QString name;
+    QRegularExpression regex;
+    QString matchedData;
 
-    QString unixtime;
-    QString apacheTimestamp;
-    QString uniqueID;
-    QString sourceIP;
-    QString sourcePort;
-    QString destinationIP;
-    QString destinationPort;
+    QSqlQuery query;
 
-private:
-    std::string apachetimeToUnixtime(const std::string &timestamp);
 };
 
 #endif

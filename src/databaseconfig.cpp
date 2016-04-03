@@ -37,7 +37,7 @@ DatabaseConfig::DatabaseConfig (QString filepath, bool debug) {
             throw QString("Can't open the specified database configuration file.");
         }
 
-        QRegularExpression validConfig("(\\w+?)\\s+([BFH])\\s+(.+?)$");
+        QRegularExpression validConfig("(\\w+?)\\s+([ABCDEFGHIJKZ])\\s+(\\S+?)$");
         QRegularExpression comment("^[\\s*#|#].*"); // any amount of whitespace followed by a hash followed by anything, or a hash followed by anything
 
         QRegularExpressionMatch match;
@@ -53,23 +53,28 @@ DatabaseConfig::DatabaseConfig (QString filepath, bool debug) {
             if ( match.hasMatch() ) {
                 if(debug) {qDebug() << "Comment or blank line on line " << line << " of database configuration file.";}
             } else {
-                match = validConfig.match(lineData);
-                if(match.hasMatch()) {
-                    if(debug) { qDebug().noquote() << "Matched data on line: " << line << ", value name is: " << match.captured(1) << ", section is: " << match.captured(2) << ", regex is: " << match.captured(3);}
+                try {
+                    match = validConfig.match(lineData);
+                    if(match.hasMatch()) {
+                        QString value = match.captured(1);
+                        QString section = match.captured(2);
+                        QString regexString = match.captured(3);
 
-                    QRegularExpression regex(match.captured(3));
-                    if(!regex.isValid())
-                        throw QString("Error in regular expression on line ") + QString::number(line) + ": " + match.captured(3) + ", " + regex.errorString() + " at position " + QString::number(regex.patternErrorOffset()+1);
+                        if(debug) { qDebug().noquote() << "Matched data on line: " << line << ", value name is: " << value << ", section is: " << section << ", regex is: " << regexString;}
 
-                    if(match.captured(2) == QString("B")) {
-                        requestHeaders.append(AuditLogConfigEntry{match.captured(1),match.captured(3),regex});
-                    } else if(match.captured(2) == QString("F")) {
-                        responseHeaders.append(AuditLogConfigEntry{match.captured(1),match.captured(3),regex});
+                        if(match.captured(2) == QString("B")) {
+                            requestHeaders.append(UserDefinedHeaderPart(value,regexString));
+                        } else if(match.captured(2) == QString("F")) {
+                            responseHeaders.append(UserDefinedHeaderPart(value,regexString));
+                        } else {
+                             throw QString("configuration of section ") + section + " has not been implemented: " + lineData.replace(QRegExp("\\s+"), " "); // collapse whitespace into a single space
+                        }
                     } else {
-                         throw QString("Invalid section identifier on line ") + QString::number(line) + " of database configuration file (section not implemented): " + lineData.replace(QRegExp("\\s+"), " "); // collapse whitespace into a single space
+                        throw QString("invalid syntax: ") + lineData.replace(QRegExp("\\s+"), " "); // collapse whitespace into a single space
                     }
-                } else {
-                    throw QString("Invalid syntax on line ") + QString::number(line) + " of database configuration file: " + lineData.replace(QRegExp("\\s+"), " "); // collapse whitespace into a single space
+                } catch (QString message) {
+                    // rethrow the message with a line number attached
+                    throw QString("Error on line: ") + QString::number(line) + " of database config file: " + message;
                 }
             }
         }

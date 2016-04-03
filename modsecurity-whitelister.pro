@@ -13,7 +13,8 @@ HEADERS +=  src/auditlogdatabase.h \
     src/auditlogrecord_auditlogheader.h \
     src/auditlogrecord_requestheaders.h \
     src/auditlogrecord_responseheaders.h \
-    src/databaseconfig.h
+    src/databaseconfig.h \
+    src/userdefinedheaderpart.h
 
 SOURCES +=  src/main.cpp \
     src/auditlogdatabase.cpp \
@@ -21,5 +22,6 @@ SOURCES +=  src/main.cpp \
     src/auditlogrecord_auditlogheader.cpp \
     src/auditlogrecord_requestheaders.cpp \
     src/auditlogrecord_responseheaders.cpp \
-    src/databaseconfig.cpp
+    src/databaseconfig.cpp \
+    src/userdefinedheaderpart.cpp
 

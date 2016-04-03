@@ -19,4 +19,31 @@
 #ifndef RESPONSEHEADERS_H
 #define RESPONSEHEADERS_H
 
+#include <QString>
+#include <QRegularExpression>
+#include "databaseconfig.h"
+
+// section F
+
+class ResponseHeaders {
+public:
+    //ResponseHeaders(QString data, DatabaseConfig *databaseConfig);
+    ResponseHeaders(DatabaseConfig *databaseConfig);
+    void clear();
+    void extract(QString data);
+
+    QString completeString;
+
+    QString httpVersion;
+    QString httpCode;
+    QString httpCodeDescription;
+
+    DatabaseConfig *databaseConfig;
+
+private:
+    QRegularExpression F_regex;
+
+
+};
+
 #endif

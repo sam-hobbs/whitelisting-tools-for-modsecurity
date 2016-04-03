@@ -16,32 +16,11 @@
     <http://www.gnu.org/licenses/>.
 */
 
-#ifndef AUDITLOGHEADERS_H
-#define AUDITLOGHEADERS_H
 
+#include "userdefinedheaderpart.h"
 
-#include <QString>
+UserDefinedHeaderPart::UserDefinedHeaderPart(QString user_name, QString regexString) : name(user_name), regex(regexString,QRegularExpression::MultilineOption) {
+    if (!regex.isValid())
+        throw QString("Error in regular expression pattern supplied: ") + regex.pattern() + ", " + regex.errorString() + " at position " + QString::number(regex.patternErrorOffset()+1);
+}
 
-// section A
-
-class AuditLogHeader {
-public:
-    AuditLogHeader(QString data);
-
-    void clear();
-
-    QString completeString;
-
-    QString unixtime;
-    QString apacheTimestamp;
-    QString uniqueID;
-    QString sourceIP;
-    QString sourcePort;
-    QString destinationIP;
-    QString destinationPort;
-
-private:
-    std::string apachetimeToUnixtime(const std::string &timestamp);
-};
-
-#endif
